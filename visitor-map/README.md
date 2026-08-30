@@ -45,7 +45,7 @@ buffer is pruned.
 | Route | Behavior |
 | --- | --- |
 | `GET /v1/pixel.svg` | Transparent 1 px, `no-store`; eligible GETs may increment one aggregate cell. HEAD never counts. |
-| `GET /v1/map.svg` | Server-rendered, accessible, cacheable all-time SVG containing 15-degree aggregate squares from the first accepted request. |
+| `GET /v1/map.svg` | Server-rendered, self-described, cacheable all-time SVG containing 15-degree aggregate-region markers from the first accepted request. |
 | `GET /healthz` | Static liveness response; it neither reads nor writes D1. |
 
 Only `GET`, `HEAD`, and tightly scoped image-endpoint `OPTIONS` are supported.
@@ -66,9 +66,15 @@ the Worker. Hugo integration uses this shape:
 The SVG uses no map CDN or runtime network dependency. Its quiet coastline is
 generated locally from the Natural Earth 1:110m land shapefile; the source is
 public domain, pinned by URL and SHA-256, and described in
-`../THIRD_PARTY_NOTICES.md`. Each visible mark occupies almost the complete
-15-degree cell so the visual communicates coarse aggregation rather than an
-individual pin.
+`../THIRD_PARTY_NOTICES.md`. Each 15-degree region is represented at its grid
+center by a code-native cinnabar winged-cup mark, a reference to the Eastern
+Jin literati tradition of `曲水流觞`. A compact five-swatch HTML legend maps
+increasingly large and vivid cinnabar cups to the five cumulative ranges,
+avoiding unreadable text inside the world-map marks and avoiding a continuous
+color bar. One to five well-separated water ripples paired with each cup add a
+second redundant, non-color encoding for the same order. Southern-edge ripples
+turn upward so the cup stays at its region center without clipping. This symbol
+is a coarse-region indicator, not an individual or precise-location pin.
 
 ## Local verification
 

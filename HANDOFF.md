@@ -50,7 +50,9 @@ Decisions made on 2026-08-30:
   required. Pull requests validate without deploying; pushes to `main` deploy
   only after all checks pass.
 - Posts use `/posts/<slug>/`, a stable slug, and an explicit timestamp in the
-  `America/Chicago` timezone. Home and archive order posts newest first.
+  `America/Chicago` timezone. Human-facing timestamps say `Houston, TX`, while
+  machine HTML and RSS retain the DST-aware UTC offset. Home and archive order
+  posts newest first.
 - Colocated Markdown images require non-empty alternative text. Processable
   images receive responsive WebP sources, intrinsic dimensions, lazy loading,
   and optional captions.
@@ -215,18 +217,28 @@ properties:
   `1-4`, `5-9`, `10-24`, `25-99`, or `100+`. The lower threshold deliberately
   reveals that one coarse 15-degree cell received a counted request, but never
   an exact location or unique visitor.
-- The map uses near-full 15-degree blue squares, never individual pins. Its
-  transparent Natural Earth 1:110m coastline is generated locally from one
-  SHA-256-pinned public-domain source; no map CDN is contacted at runtime.
+- The map uses code-native cinnabar winged-cup marks inspired by the Eastern
+  Jin `曲水流觞` tradition. Each mark represents a 15-degree region; a compact
+  five-swatch HTML legend maps increasingly large, increasingly vivid,
+  theme-safe cinnabar cups to the cumulative bands, and one to five separated
+  water ripples add a second redundant non-color encoding without unreadable
+  in-mark text or a continuous color bar. It never
+  claims an individual or precise-location pin. Its transparent
+  Natural Earth 1:110m coastline is generated locally from one SHA-256-pinned
+  public-domain source; no map CDN is contacted at runtime.
 - At most 20,000 eligible requests are accepted daily and each cell/day
   saturates at 2,000. A trigger bridges each accepted daily increment into the
   all-time table, bounding normal D1 writes near 60,000 rows/day before
   maintenance. Free-tier exhaustion is an availability failure, not permission
   to enable billing.
 - `wrangler.template.jsonc` has invalid placeholders, disables workers.dev,
-  previews, logs, and metrics, and is not auto-discovered. During the approved
-  one-time deployment, real IDs and auth live only in a temporary `/tmp`
-  configuration; no deployable `wrangler.jsonc` remains in the workspace.
+  previews, logs, metrics, and source-map uploads, requires minification so
+  local build paths do not enter the uploaded bundle, and is not
+  auto-discovered. During the approved one-time deployment, real IDs and auth
+  live only in a temporary `/tmp` configuration; no deployable
+  `wrangler.jsonc` remains in the workspace. Root and Worker-local Wrangler
+  caches plus browser-QA session artifacts are ignored so account metadata or
+  transient screenshots cannot be staged accidentally.
 - Node tests plus a standard-library SQLite execution check cover the privacy
   contract, request gates, renderer, source provenance, SQL `RETURNING`, caps,
   all-time trigger bridging, and observable retention failures. Pages CI runs
@@ -239,6 +251,11 @@ properties:
   active resources, and accepts the pixel as the only empty-alt exception.
   GitHub Actions can enable production only through the paired public
   `VISITOR_MAP_ENABLED` and `VISITOR_MAP_ORIGIN` repository variables.
+- The external SVG retains per-region titles in its markup, while the embedded
+  `<img>` exposes a truthful aggregate-level alternative rather than dynamic
+  per-region rows. Fully mirroring live region rows into the page's
+  accessibility tree would require a second client data path, which remains
+  outside the approved no-JavaScript collection architecture.
 
 The Cloudflare deployment was verified with Wrangler 4.127.1, pinned from npm
 with its registry SHA-512 integrity checked. Device-flow OAuth and the real
@@ -319,6 +336,16 @@ The all-time, identity, and favicon release was verified on 2026-08-30:
   bundle contain none of the audited name, email, personal-path, old-hostname,
   or credential patterns. The prior privacy-bearing Actions runs and artifacts
   were deleted.
+
+The winged-cup map Worker was updated in place on 2026-08-30. Wrangler 4.127.1
+found no pending migration, retained exactly one D1 database, disabled
+autoconfiguration and experimental provisioning, minified the upload, and did
+not upload its locally generated source map. The upload contains the
+`all-time-v6-scaled-winged-cup-ripples` cache policy and no known personal path,
+identity pattern, or identifying request-header reference. Live health and an
+eligible map GET returned the new winged-cup SVG without requesting the
+counting pixel. The isolated OAuth session was then logged out and no OAuth
+token field remained in its temporary configuration.
 
 Historical Git objects still contain values deleted from the current tree.
 Removing those objects would require rewriting public history and force-pushing,

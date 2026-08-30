@@ -94,7 +94,7 @@ test("Worker source never reads identifying request headers or creates event fie
   assert.match(source, /FROM cell_total[\s\S]*WHERE hits >= \?1/);
   assert.doesNotMatch(source, /aggregateWindow|HAVING SUM\(hits\)|renderMapHtml/);
   assert.doesNotMatch(source, /["']\/v1\/map["']/);
-  assert.match(source, /MAP_CACHE_POLICY = "all-time-v2"/);
+  assert.match(source, /MAP_CACHE_POLICY = "all-time-v6-scaled-winged-cup-ripples"/);
 });
 
 test("Wrangler template is visibly locked and disables logs", () => {
@@ -104,9 +104,25 @@ test("Wrangler template is visibly locked and disables logs", () => {
   assert.match(config, /"workers_dev": false/);
   assert.match(config, /"preview_urls": false/);
   assert.match(config, /"send_metrics": false/);
+  assert.match(config, /"minify": true/);
+  assert.match(config, /"upload_source_maps": false/);
   assert.match(config, /"observability"[\s\S]*"enabled": false/);
   assert.match(config, /"logs"[\s\S]*"enabled": false/);
   assert.match(config, /"invocation_logs": false/);
+});
+
+test("site legend mirrors all five Worker marker colors and scales", () => {
+  const css = readFileSync(join(root, "..", "assets", "css", "main.css"), "utf8");
+  const colors = ["#916960", "#9f6053", "#ad5747", "#ba4e3b", "#c74330"];
+  const scales = ["0.72", "0.86", "1", "1.16", "1.34"];
+  for (let index = 0; index < colors.length; index += 1) {
+    const level = index + 1;
+    assert.match(css, new RegExp(`--map-range-${level}: ${colors[index]}`));
+    assert.match(
+      css,
+      new RegExp(`visitor-map__swatch--${level} \\{[\\s\\S]*?--marker-scale: ${scales[index]}`),
+    );
+  }
 });
 
 test("basemap is generated from one pinned public-domain source", () => {
@@ -126,7 +142,10 @@ test("basemap is generated from one pinned public-domain source", () => {
 
 test("local secret and account files are ignored", () => {
   const ignores = readFileSync(join(root, ".gitignore"), "utf8");
+  const siteIgnores = readFileSync(join(root, "..", ".gitignore"), "utf8");
   assert.match(ignores, /^\.dev\.vars\.\*$/m);
   assert.match(ignores, /^\.env\.\*$/m);
   assert.match(ignores, /^wrangler\.jsonc$/m);
+  assert.match(siteIgnores, /^\/\.wrangler\/$/m);
+  assert.match(siteIgnores, /^\/\.playwright-cli\/$/m);
 });

@@ -3,6 +3,12 @@
 /resources/_gen/
 /.hugo_build.lock
 
+# Wrangler may cache account metadata in the command working directory.
+/.wrangler/
+
+# The browser QA wrapper writes session screenshots and snapshots here.
+/.playwright-cli/
+
 # Python's local bytecode cache from validating the helper scripts.
 __pycache__/
 *.py[cod]

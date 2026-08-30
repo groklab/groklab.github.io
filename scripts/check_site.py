@@ -61,9 +61,17 @@ WORKERS_DEV_ORIGIN_RE = re.compile(
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.workers\.dev"
 )
 VISITOR_MAP_ALT = (
-    "匿名聚合页面请求世界地图；显示自启用以来至少成功计入一次页面请求的 "
-    "15 度网格，不代表独立访客。"
+    "匿名聚合页面请求世界地图；朱砂羽觞标记代表 15 度区域，并以五档大小、颜色和"
+    "一至五道水纹显示自启用以来的累计页面请求区间，不代表独立访客或精确位置。"
 )
+VISITOR_MAP_LEGEND_TEXT = "15° 区域 · 累计请求 1–4 5–9 10–24 25–99 100+"
+VISITOR_MAP_SWATCHES = [
+    {
+        "class": f"visitor-map__swatch visitor-map__swatch--{level}",
+        "aria-hidden": "true",
+    }
+    for level in range(1, 6)
+]
 VISITOR_MAP_PATHS = {
     "pixel": "/v1/pixel.svg",
     "map": "/v1/map.svg",
@@ -135,6 +143,10 @@ class HTMLDocument:
     visitor_map_elements: list[tuple[str, dict[str, str | None]]] = field(
         default_factory=list
     )
+    visitor_map_swatches: list[dict[str, str | None]] = field(default_factory=list)
+    post_dates: list[dict[str, str | None]] = field(default_factory=list)
+    post_date_place_count: int = 0
+    post_date_place_text_parts: list[str] = field(default_factory=list)
     theme_toggles: list[dict[str, str | None]] = field(default_factory=list)
     head_assets: list[tuple[str, str]] = field(default_factory=list)
     icon_links: list[dict[str, str | None]] = field(default_factory=list)
@@ -155,6 +167,7 @@ class DocumentParser(html.parser.HTMLParser):
         self._brand_tagline_depth = 0
         self._h1_depth = 0
         self._post_content_depth = 0
+        self._post_date_place_depth = 0
 
     def handle_decl(self, decl: str) -> None:
         return
@@ -180,6 +193,11 @@ class DocumentParser(html.parser.HTMLParser):
             self._post_content_depth += 1
         elif "post-content" in classes:
             self._post_content_depth = 1
+        if self._post_date_place_depth and not is_void:
+            self._post_date_place_depth += 1
+        elif "post-date__place" in classes:
+            self._post_date_place_depth = 1
+            self.document.post_date_place_count += 1
         if tag == "html" and self.document.lang is None:
             self.document.lang = attributes.get("lang")
         if tag == "title":
@@ -194,6 +212,10 @@ class DocumentParser(html.parser.HTMLParser):
             self.document.theme_toggles.append(attributes)
         if "data-visitor-map" in attributes:
             self.document.visitor_map_elements.append((tag, attributes))
+        if "visitor-map__swatch" in classes:
+            self.document.visitor_map_swatches.append(attributes)
+        if tag == "time" and "post-date" in classes:
+            self.document.post_dates.append(attributes)
         if tag == "li" and "post-entry" in classes:
             self.document.post_entry_count += 1
         if tag in {"head", "script", "style", "template", "noscript"}:
@@ -270,6 +292,8 @@ class DocumentParser(html.parser.HTMLParser):
             self._brand_tagline_depth -= 1
         if self._post_content_depth:
             self._post_content_depth -= 1
+        if self._post_date_place_depth:
+            self._post_date_place_depth -= 1
         if tag in {"head", "script", "style", "template", "noscript"} and self._nonvisible_depth:
             self._nonvisible_depth -= 1
 
@@ -284,6 +308,8 @@ class DocumentParser(html.parser.HTMLParser):
             self.document.h1_parts.append(data)
         if self._post_content_depth:
             self.document.post_content_parts.append(data)
+        if self._post_date_place_depth:
+            self.document.post_date_place_text_parts.append(data)
         if not self._nonvisible_depth:
             self.document.text_parts.append(data)
 
@@ -486,12 +512,11 @@ def validate_visitor_map_element(
                     "decoding": "async",
                     "crossorigin": "anonymous",
                     "referrerpolicy": "no-referrer",
-                    "aria-describedby": "visitor-map-caption",
                 },
                 context,
             )
         )
-        for forbidden in ("fetchpriority", "srcset"):
+        for forbidden in ("aria-describedby", "fetchpriority", "srcset"):
             if forbidden in attributes:
                 errors.append(f"{context}: {forbidden} is not allowed")
     else:
@@ -522,9 +547,29 @@ def validate_visitor_map_document(
                 f"{context}: visitor-map elements are forbidden when collection is off "
                 "or on the 404 page"
             )
+        if VISITOR_MAP_LEGEND_TEXT in document.text:
+            errors.append(f"{context}: visitor-map legend is forbidden on this page")
+        if document.visitor_map_swatches:
+            errors.append(f"{context}: visitor-map swatches are forbidden on this page")
         return errors
 
     assert visitor_map_origin is not None
+    if VISITOR_MAP_LEGEND_TEXT not in document.text:
+        errors.append(
+            f"{context}: visible visitor-map legend must be exactly "
+            f"{VISITOR_MAP_LEGEND_TEXT!r}"
+        )
+    actual_swatches = [
+        {name: attributes.get(name) for name in expected}
+        for attributes, expected in zip(document.visitor_map_swatches, VISITOR_MAP_SWATCHES)
+    ]
+    if (
+        len(document.visitor_map_swatches) != len(VISITOR_MAP_SWATCHES)
+        or actual_swatches != VISITOR_MAP_SWATCHES
+    ):
+        errors.append(
+            f"{context}: visitor-map swatches must contain ordered levels 1 through 5"
+        )
     by_kind: dict[str, list[tuple[str, dict[str, str | None]]]] = {
         kind: [] for kind in VISITOR_MAP_PATHS
     }
@@ -566,6 +611,41 @@ def validate_visitor_map_document(
         if count != 1:
             errors.append(
                 f"{context}: expected visitor {kind} endpoint exactly once, found {count}"
+            )
+    return errors
+
+
+def validate_post_dates(document: HTMLDocument, context: str) -> list[str]:
+    errors: list[str] = []
+    visible_places = [
+        " ".join(part.split())
+        for part in document.post_date_place_text_parts
+        if part.strip()
+    ]
+    expected_places = ["Houston, TX"] * len(document.post_dates)
+    if (
+        document.post_date_place_count != len(document.post_dates)
+        or visible_places != expected_places
+    ):
+        errors.append(
+            f"{context}: every post date must visibly name Houston, TX exactly once"
+        )
+
+    for number, attributes in enumerate(document.post_dates, start=1):
+        date_context = f"{context} post date {number}"
+        machine = attributes.get("datetime") or ""
+        match = re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})",
+            machine,
+        )
+        if match is None:
+            errors.append(f"{date_context}: datetime must be offset-aware ISO 8601")
+            continue
+        offset = "+00:00" if match.group(1) == "Z" else match.group(1)
+        label = attributes.get("aria-label") or ""
+        if not label.endswith(f", Houston, TX (UTC{offset})"):
+            errors.append(
+                f"{date_context}: aria-label must retain Houston and UTC{offset}"
             )
     return errors
 
@@ -647,6 +727,7 @@ def validate_html_documents(
                 is_404=is_404,
             )
         )
+        errors.extend(validate_post_dates(document, context))
 
         if not document.lang or not document.lang.strip():
             errors.append(f"{context}: <html> needs a non-empty lang attribute")

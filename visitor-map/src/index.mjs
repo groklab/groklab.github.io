@@ -15,7 +15,7 @@ import {
 } from "./privacy.mjs";
 import { renderMapSvg } from "./render.mjs";
 
-const MAP_CACHE_POLICY = "all-time-v2";
+const MAP_CACHE_POLICY = "all-time-v6-scaled-winged-cup-ripples";
 
 export const SQL = Object.freeze({
   claimDailyBudget: `

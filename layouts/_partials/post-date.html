@@ -1,6 +1,6 @@
-{{- $label := .Date.Format "2006-01-02 15:04 -07:00" -}}
-<time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}" aria-label="{{ $label }}">
+{{- $label := printf "%s, Houston, TX (UTC%s)" (.Date.Format "2006-01-02 15:04") (.Date.Format "-07:00") -}}
+<time class="post-date" datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}" aria-label="{{ $label }}">
   <span class="post-date__day" aria-hidden="true">{{ .Date.Format "2006-01-02" }}</span>
   <span class="post-date__clock" aria-hidden="true">{{ .Date.Format "15:04" }}</span>
-  <span class="post-date__zone" aria-hidden="true">{{ .Date.Format "-07:00" }}</span>
+  <span class="post-date__place" aria-hidden="true">Houston, TX</span>
 </time>

@@ -39,11 +39,18 @@
       </nav>
       <section class="visitor-map" aria-labelledby="visitor-map-title">
         <h2 id="visitor-map-title" class="visitor-map__title">访问地区</h2>
+        <div class="visitor-map__legend">
+          <p class="visitor-map__legend-title">15° 区域 · 累计请求</p>
+          <ol class="visitor-map__scale" role="list" aria-label="累计页面请求区间；羽觞由小到大，所配一至五道水纹对应由低到高的五档">
+            <li><span class="visitor-map__swatch visitor-map__swatch--1" aria-hidden="true"></span><span>1–4</span></li>
+            <li><span class="visitor-map__swatch visitor-map__swatch--2" aria-hidden="true"></span><span>5–9</span></li>
+            <li><span class="visitor-map__swatch visitor-map__swatch--3" aria-hidden="true"></span><span>10–24</span></li>
+            <li><span class="visitor-map__swatch visitor-map__swatch--4" aria-hidden="true"></span><span>25–99</span></li>
+            <li><span class="visitor-map__swatch visitor-map__swatch--5" aria-hidden="true"></span><span>100+</span></li>
+          </ol>
+        </div>
         <figure class="visitor-map__figure">
-          <img data-visitor-map="map" class="visitor-map__image" src="{{ $visitorMapOrigin }}/v1/map.svg" width="720" height="360" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" alt="匿名聚合页面请求世界地图；显示自启用以来至少成功计入一次页面请求的 15 度网格，不代表独立访客。" aria-describedby="visitor-map-caption">
-          <figcaption id="visitor-map-caption" class="visitor-map__caption">
-            自启用以来成功计入的页面请求，按 15° 网格汇总；网格从第一次成功计入起显示，数量只显示区间。为守住免费额度，超出每日保护上限或写入失败的请求不会计入。这不是独立访客统计。
-          </figcaption>
+          <img data-visitor-map="map" class="visitor-map__image" src="{{ $visitorMapOrigin }}/v1/map.svg" width="720" height="360" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" alt="匿名聚合页面请求世界地图；朱砂羽觞标记代表 15 度区域，并以五档大小、颜色和一至五道水纹显示自启用以来的累计页面请求区间，不代表独立访客或精确位置。">
         </figure>
         <img data-visitor-map="pixel" class="visitor-map__pixel" src="{{ $visitorMapOrigin }}/v1/pixel.svg" alt="" aria-hidden="true" width="1" height="1" loading="eager" crossorigin="anonymous" referrerpolicy="no-referrer">
       </section>

@@ -31,7 +31,8 @@
   output remains ignored and must not be committed.
 - Root-relative asset paths are intentional because this is a user site at `/`.
 - `America/Chicago` is the site timezone. Published dates include an explicit
-  UTC offset and control both ordering and the visible timestamp.
+  UTC offset and control ordering; human-facing dates label the timezone as
+  `Houston, TX`, while machine-readable HTML and RSS retain the numeric offset.
 
 ## Content conventions
 
@@ -74,9 +75,13 @@
 - The visitor map is approved only as anonymous aggregate geography. Collection
   must use a no-JavaScript image request; never store or expose raw IPs, stable
   visitor hashes, individual timestamps, or individual visitor pins. Public
-  output uses all-time 15-degree squares from the first successfully counted
-  request, never dots or pins, and exact counts remain private. All
-  external-service details and credentials stay out of the repository.
+  output uses all-time 15-degree regions from the first successfully counted
+  request. Each region uses a code-native cinnabar winged-cup mark inspired by
+  Eastern Jin `曲水流觞`; a compact five-swatch legend maps increasingly large
+  and vivid cinnabar cups to cumulative count bands, while one to five separated
+  water ripples provide a second redundant non-color cue. It does not claim a
+  precise pin, and exact counts remain private. All external-service details
+  and credentials stay out of the repository.
 - The committed Hugo configuration keeps the visitor map disabled with an empty
   origin. Production enablement is a strict two-key latch supplied only by the
   `VISITOR_MAP_ENABLED` and `VISITOR_MAP_ORIGIN` GitHub Actions variables.
@@ -87,8 +92,10 @@
   service and D1 Free database named `groklab-visitor-map`. Treat the existing
   resources as durable state: inventory and inspect them before any update, do
   not create replacements implicitly, and preserve the committed default-off
-  configuration. Clearing both repository variables and redeploying is the
-  supported zero-Worker-request rollback.
+  configuration. Worker uploads must be minified and source-map upload must
+  remain disabled so comments and source metadata cannot contain build-machine
+  paths. Clearing both repository variables and redeploying is the supported
+  zero-Worker-request rollback.
 
 ## Local commands and quality gate
 

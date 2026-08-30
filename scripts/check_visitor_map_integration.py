@@ -291,6 +291,24 @@ def check_rejected_artifacts(
             raise IntegrationFailure("fixture-enabled homepage has no </body>")
         return text.replace(marker, f"{insertion}{marker}", 1)
 
+    def remove_visible_legend(text: str) -> str:
+        marker = "15° 区域 · 累计请求"
+        if marker not in text:
+            raise IntegrationFailure("fixture-enabled homepage has no visitor-map legend")
+        return text.replace(marker, "累计请求", 1)
+
+    def duplicate_swatch_level(text: str) -> str:
+        marker = "visitor-map__swatch--5"
+        if marker not in text:
+            raise IntegrationFailure("fixture-enabled homepage has no fifth swatch")
+        return text.replace(marker, "visitor-map__swatch--4", 1)
+
+    def replace_date_place(text: str) -> str:
+        marker = ">Houston, TX<"
+        if marker not in text:
+            raise IntegrationFailure("fixture-enabled homepage has no date place")
+        return text.replace(marker, ">Chicago, IL<", 1)
+
     mutations = [
         ("wrong-map-attribute", wrong_map_loading),
         ("forbidden-map-srcset", add_map_srcset),
@@ -298,6 +316,9 @@ def check_rejected_artifacts(
         ("external-active-resource", add_external_script),
         ("non-pixel-empty-alt", add_empty_alt_image),
         ("unexpected-worker-link", add_unexpected_worker_link),
+        ("missing-visible-legend", remove_visible_legend),
+        ("duplicate-swatch-level", duplicate_swatch_level),
+        ("wrong-date-place", replace_date_place),
     ]
     for label, mutate in mutations:
         mutate_html_and_expect_failure(homepage, enabled_public, label, mutate)

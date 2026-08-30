@@ -105,9 +105,12 @@ test("map SVG queries the bounded all-time table at threshold one", async () => 
   assert.match(database.calls[0].sql, /FROM cell_total/);
   assert.doesNotMatch(database.calls[0].sql, /cell_day|SUM\(|GROUP BY|day >=/);
   assert.deepEqual(database.calls[0].binds, [1]);
-  assert.equal((body.match(/class="aggregate-cell"/g) ?? []).length, 2);
-  assert.match(body, /1–4 次页面请求/);
-  assert.match(body, /10–24 次页面请求/);
+  assert.equal((body.match(/class="aggregate-marker"/g) ?? []).length, 2);
+  assert.match(body, /累计 1–4 次页面请求/);
+  assert.match(body, /累计 10–24 次页面请求/);
+  assert.match(body, /data-ripples="1"/);
+  assert.match(body, /data-ripples="3"/);
+  assert.doesNotMatch(body, /<text/);
   assert.doesNotMatch(body, /12 次页面请求/);
 });
 
@@ -226,7 +229,7 @@ test("versioned edge-cache hits bypass D1 and cache failures fall back safely", 
     assert.equal(await hit.text(), cachedBody);
     assert.equal(hitDatabase.calls.length, 0);
     assert.deepEqual(matchedUrls, [
-      "https://map.example/v1/map.svg?__cache_policy=all-time-v2",
+      "https://map.example/v1/map.svg?__cache_policy=all-time-v6-scaled-winged-cup-ripples",
     ]);
     assert.notEqual(matchedUrls[0], "https://map.example/v1/map.svg");
 
@@ -265,7 +268,7 @@ test("versioned edge-cache hits bypass D1 and cache failures fall back safely", 
     assert.equal(putAttempts, 1);
     assert.equal(
       failedMatchUrl,
-      "https://map.example/v1/map.svg?__cache_policy=all-time-v2",
+      "https://map.example/v1/map.svg?__cache_policy=all-time-v6-scaled-winged-cup-ripples",
     );
     assert.equal(failedPutUrl, failedMatchUrl);
   } finally {
