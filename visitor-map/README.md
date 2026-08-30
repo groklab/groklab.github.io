@@ -25,31 +25,34 @@ and contains no application logging. Missing geography, storage errors, and a
 tripped circuit breaker all fail closed for counting while the pixel remains a
 valid transparent image.
 
-The public map covers today plus the preceding 89 UTC days. A 15-degree cell
-is omitted until its aggregate reaches five. Visible counts are reduced to
-`5-9`, `10-24`, `25-99`, or `100+`; an exact aggregate is never rendered.
-The threshold suppresses low-volume cells but is not a k-anonymity guarantee:
-five requests can come from fewer than five people. The map therefore never
-labels its numbers as unique visitors.
+The public map reads one all-time row per coarse cell and includes every cell
+from its first successfully counted request. Visible counts are reduced to
+`1-4`, `5-9`, `10-24`, `25-99`, or `100+`; an exact aggregate is never
+rendered. Lowering the display threshold to one deliberately reveals that a
+coarse cell received at least one counted request, but it still does not reveal
+an IP, exact location, or unique visitor. The map never labels its numbers as
+unique visitors.
 The global daily circuit breaker accepts at most 20,000 requests, and each
 cell/day counter saturates at 2,000. Origin and Fetch Metadata checks reduce
 accidental noise but are not authentication because non-browser clients can
-forge headers; the fixed write cap is the final abuse/cost boundary.
+forge headers; the fixed write cap is the final abuse/cost boundary. The daily
+rows are retained for 90 days only as a private rollback buffer. Database
+triggers add every accepted daily increment to the all-time table before that
+buffer is pruned.
 
 ## Routes
 
 | Route | Behavior |
 | --- | --- |
 | `GET /v1/pixel.svg` | Transparent 1 px, `no-store`; eligible GETs may increment one aggregate cell. HEAD never counts. |
-| `GET /v1/map.svg` | Server-rendered, cacheable rolling 90-day SVG containing only thresholded 15-degree aggregate squares. |
-| `GET /v1/map` | Keyboard- and screen-reader-friendly HTML table with the same coarse cells and count ranges. |
+| `GET /v1/map.svg` | Server-rendered, accessible, cacheable all-time SVG containing 15-degree aggregate squares from the first accepted request. |
 | `GET /healthz` | Static liveness response; it neither reads nor writes D1. |
 
 Only `GET`, `HEAD`, and tightly scoped image-endpoint `OPTIONS` are supported.
-The HTML summary is a top-level navigation, not a CORS API. Query strings are
-rejected. Image endpoints require `crossorigin="anonymous"`, because that
+The retired `/v1/map` document route returns 404. Query strings are rejected.
+Image endpoints require `crossorigin="anonymous"`, because that
 causes the browser to send the exact Origin and CORS Fetch Metadata checked by
-the Worker. Later Hugo integration can use this shape after deployment:
+the Worker. Hugo integration uses this shape:
 
 ```html
 <img src="https://WORKER.SUBDOMAIN.workers.dev/v1/pixel.svg"
@@ -58,7 +61,6 @@ the Worker. Later Hugo integration can use this shape after deployment:
 <img src="https://WORKER.SUBDOMAIN.workers.dev/v1/map.svg"
      crossorigin="anonymous" referrerpolicy="no-referrer"
      alt="Anonymous aggregate page-request map">
-<a href="https://WORKER.SUBDOMAIN.workers.dev/v1/map">Text map summary</a>
 ```
 
 The SVG uses no map CDN or runtime network dependency. Its quiet coastline is
@@ -74,7 +76,7 @@ Node 20 or newer is sufficient. There is nothing to install and no command
 contacts Cloudflare:
 
 ```sh
-cd /Users/rong.lu/repo/groklab.github.io/visitor-map
+cd visitor-map
 node --test test/*.test.mjs
 python3 tools/check_sqlite.py
 ```
@@ -86,40 +88,35 @@ python3 tools/generate_world_path.py /path/to/ne_110m_land.shp src/world-path.mj
 ```
 
 The Node tests mock D1 and the Worker execution context. They cover privacy
-bucketing, thresholds and range caps, request validation, CORS, method and
-query rejection, cache/security headers, circuit-breaker behavior, SQL binds,
-scheduled retention, accessible output, configuration locks, and forbidden
-schema/source fields. The Python check executes the migration and the exact SQL
-templates extracted from the Worker against an in-memory SQLite database,
-including `RETURNING`, saturation, thresholding, and pruning.
+bucketing, the threshold-one range caps, request validation, CORS, method and
+query rejection, versioned cache/security headers, circuit-breaker behavior,
+SQL binds, rollback-buffer retention, accessible output, configuration locks,
+and forbidden schema/source fields. The Python check executes both migrations
+and the exact SQL templates extracted from the Worker against an in-memory
+SQLite database, including `RETURNING`, trigger bridging, saturation,
+all-time reads, and pruning that never subtracts from lifetime totals.
 
 ## Deployment remains deliberately locked
 
-`wrangler.template.jsonc` is not a filename Wrangler auto-discovers. It also
-contains invalid placeholder account/database values, has `workers_dev` and
-preview URLs disabled, and disables observability/logs. Consequently this
-directory cannot be deployed merely by running `wrangler deploy`.
+Production already uses exactly one Workers Free service and one D1 Free
+database named `groklab-visitor-map`. `wrangler.template.jsonc` remains a
+non-deployable template: it contains invalid placeholder IDs, has a nonstandard
+filename that Wrangler does not discover, and explicitly disables workers.dev,
+preview URLs, logs, metrics, and telemetry. There is intentionally no
+`wrangler.jsonc`, account ID, database ID, public endpoint, or credential in
+this repository. `.gitignore` rejects common local Wrangler config variants and
+`.wrangler/` state.
 
-If the owner later creates or signs into a free Cloudflare account, they must
-review the then-current free-plan limits and terms before doing these explicit
-external-write steps. These commands are documentation only and were not run:
+Do not run another `d1 create` or create a second Worker. Approved maintenance
+must first verify the intended Cloudflare account, re-check the current free
+plan, and use a reviewed temporary configuration outside the checkout with
+autoprovisioning disabled. Apply only pending migrations explicitly with
+`--remote`, perform a strict dry run, deploy the existing service, verify its
+routes and inventory, then log out and remove the temporary credentials. No
+credential or external-service identifier belongs in Git.
 
-```sh
-cd /Users/rong.lu/repo/groklab.github.io/visitor-map
-wrangler whoami
-wrangler d1 create groklab-visitor-map
-cp wrangler.template.jsonc wrangler.jsonc
-# Replace every REPLACE_WITH_* value and deliberately set workers_dev to true.
-wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-wrangler deploy --config wrangler.jsonc
-```
-
-The one-time Cloudflare actions require the owner to create/sign into an
-account, accept any applicable terms, record the account ID and returned D1
-database ID only in the ignored `wrangler.jsonc`, and choose the workers.dev
-subdomain. No credential or external-service identifier belongs in Git.
-
-The daily retention trigger deletes aggregate days older than the rolling
-window. D1 Time Travel remains a platform-level recovery feature; if the
-strictest possible deletion semantics are required, its then-current retention
-behavior must be reviewed before deployment.
+The scheduled handler deletes daily rollback-buffer rows older than 90 days and
+expired daily-budget rows. It never deletes from the all-time aggregate table.
+D1 Time Travel remains a platform-level recovery feature; if the strictest
+possible deletion semantics are required, its then-current retention behavior
+must be reviewed before deployment.

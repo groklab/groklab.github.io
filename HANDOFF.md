@@ -16,7 +16,8 @@ root URL. Do not rename it or introduce a project-site prefix.
 
 Verify this state at the start of each session rather than trusting it blindly:
 
-- Local path: `/Users/rong.lu/repo/groklab.github.io`
+- Local path: the root of the current checkout; do not record a machine-specific
+  home-directory path
 - Remote: `https://github.com/groklab/groklab.github.io`
 - Default/source branch: `main`
 - Visibility: public
@@ -63,11 +64,13 @@ Decisions made on 2026-08-30:
   motion.
 - The wordmark's `real jarvis` line is split across the same datum, with `real`
   beneath `真` and `jarvis` beneath `假维斯`. The accessible home-link name
-  remains exactly `真假维斯`.
+  remains exactly `真假维斯`. A one-pixel optical correction aligns the left
+  edge of `jarvis` with `假` without moving the shared structural datum.
 - The theme control follows the system preference until a visitor chooses light
   or dark, then persists that choice under `groklab.theme.v1` in localStorage.
   It sets no cookie, makes no network request, and is hidden when JavaScript is
-  unavailable while CSS continues to follow the system theme.
+  unavailable while CSS continues to follow the system theme. Its visible
+  state words are `明` and `暗`, avoiding the time-of-day ambiguity of `日` and `夜`.
 - The Chinese font is the unmodified LXGW WenKai GB 1.522 TTF under SIL OFL
   1.1. The user explicitly prioritizes its elegant contemporary-kai appearance
   over its roughly 25 MB mobile transfer cost.
@@ -78,6 +81,10 @@ Decisions made on 2026-08-30:
   classic, readable, and harmonious with LXGW WenKai GB.
 - 得到今楷 is not used because it is exclusive to 得到. 仓耳今楷 is not used
   because clear redistribution and web-embedding permission was not established.
+- The favicon is an original code-native 16 px Mondrian-inspired pixel
+  composition in the site's five-color palette. SVG, multi-size ICO, 32 px PNG,
+  and 180 px Apple touch variants are committed so browsers do not fall back to
+  a generic globe.
 
 ## Approved work in progress
 
@@ -88,8 +95,8 @@ what has actually shipped:
 - Implement an anonymous aggregate world map with a Cloudflare Worker, D1, a
   no-JavaScript hit pixel, and a server-rendered SVG. Store only coarse
   geographic counts; do not store raw IPs or stable hashes. Public locations
-  require a minimum-count threshold and must never appear as individual visitor
-  pins or precise locations.
+  appear from the first accepted request as coarse ranges and must never appear
+  as individual visitor pins or precise locations.
 - Keep `AGENTS.md` and this handoff evergreen, make focused commits, and verify
   every pushed Pages release against its exact source commit and live output.
 
@@ -190,39 +197,44 @@ The selected Counterpoint visual system was verified on 2026-08-30:
 The deploy-locked source lives in `visitor-map/`. The committed Hugo
 configuration remains strictly default-off, while production is enabled only
 through the paired GitHub Actions variables. One Workers Free service and one
-D1 Free database, both named `groklab-visitor-map`, now back the live footer;
-the verified public origin remains only in the repository variable. Current
-properties:
+D1 Free database, both named `groklab-visitor-map`, are provisioned for the
+footer; the verified public origin belongs only in the repository variable.
+Current properties:
 
 - A dependency-free ESM Worker serves a strict no-JavaScript hit pixel, a
-  server-rendered SVG, a Chinese text/table alternative, and static health
-  response. There is no package manifest or client analytics script.
-- D1 stores only UTC day, integer 15-degree latitude/longitude bands, and
-  bounded aggregate counters. It has no event table, raw address, stable
-  identifier, precise coordinate, path, referrer, user agent, or individual
-  timestamp. Missing geography and write failures fail closed for counting.
-- Public output is a rolling 90-day view. Cells below five page requests are
-  omitted; visible counts are only `5-9`, `10-24`, `25-99`, or `100+`. This is
-  request suppression, not a claim of five distinct visitors or k-anonymity.
+  server-rendered accessible SVG, and a static health response. The former HTML
+  text/table route is retired and returns 404. There is no package manifest or
+  client analytics script.
+- D1 stores only UTC days for rollback and budgeting, integer 15-degree
+  latitude/longitude bands, bounded aggregate counters, and a 90-day private
+  daily rollback buffer. It has no event table, raw address, stable identifier,
+  precise coordinate, path, referrer, user agent, or individual timestamp.
+  Missing geography and write failures fail closed for counting.
+- Public output is all-time from the original map launch. Cells display from
+  their first successfully counted page request; visible counts are only
+  `1-4`, `5-9`, `10-24`, `25-99`, or `100+`. The lower threshold deliberately
+  reveals that one coarse 15-degree cell received a counted request, but never
+  an exact location or unique visitor.
 - The map uses near-full 15-degree blue squares, never individual pins. Its
   transparent Natural Earth 1:110m coastline is generated locally from one
   SHA-256-pinned public-domain source; no map CDN is contacted at runtime.
 - At most 20,000 eligible requests are accepted daily and each cell/day
-  saturates at 2,000, bounding normal D1 writes near 40,000 rows/day before
+  saturates at 2,000. A trigger bridges each accepted daily increment into the
+  all-time table, bounding normal D1 writes near 60,000 rows/day before
   maintenance. Free-tier exhaustion is an availability failure, not permission
   to enable billing.
 - `wrangler.template.jsonc` has invalid placeholders, disables workers.dev,
   previews, logs, and metrics, and is not auto-discovered. During the approved
   one-time deployment, real IDs and auth live only in a temporary `/tmp`
   configuration; no deployable `wrangler.jsonc` remains in the workspace.
-- Thirty-one Node tests plus a standard-library SQLite execution check cover the
-  privacy contract, request gates, renderer, source provenance, SQL
-  `RETURNING`, caps, thresholding, and observable retention failures. Pages CI
-  runs both checks without installing packages.
+- Node tests plus a standard-library SQLite execution check cover the privacy
+  contract, request gates, renderer, source provenance, SQL `RETURNING`, caps,
+  all-time trigger bridging, and observable retention failures. Pages CI runs
+  both checks without installing packages.
 - Hugo keeps a two-key `enabled: false` plus empty-origin latch in committed
   configuration. The partial rejects malformed or half-enabled states. Its
-  enabled form emits one eager pixel, one lazy 720 by 360 SVG, and one text
-  alternative on ordinary pages, while the 404 remains collection-free.
+  enabled form emits one eager pixel and one lazy 720 by 360 SVG on ordinary
+  pages, while the 404 remains collection-free.
 - The artifact checker proves both states, forbids all unexpected external
   active resources, and accepts the pixel as the only empty-alt exception.
   GitHub Actions can enable production only through the paired public
@@ -246,12 +258,13 @@ Worker or live tail session, and no Workers Logs observability object. The
 effective Workers Logs parent is off; Cloudflare represents that disabled state
 as `observability: null` rather than exposing the nested disabled values.
 
-Remote route checks covered health, text and SVG maps, HEAD pixel behavior,
-CORS/Fetch Metadata, OPTIONS, unsupported methods, wrong origins, query
-rejection, security headers, and the empty-threshold state. A single real
-browser page load then exercised the eligible no-JavaScript pixel and produced a
-nonzero aggregate D1 counter without disclosing its precise cell. This is only
-page-request counting, not a unique-visitor measurement.
+The initial pre-retirement route checks covered health, the former text route,
+the SVG map, HEAD pixel behavior, CORS/Fetch Metadata, OPTIONS, unsupported
+methods, wrong origins, query rejection, security headers, and the former empty
+threshold state. A single real browser page load then exercised the eligible
+no-JavaScript pixel and produced a nonzero aggregate D1 counter without
+disclosing its precise cell. This is only page-request counting, not a
+unique-visitor measurement.
 
 The deploy-locked source was committed and verified on 2026-08-30:
 
@@ -268,24 +281,23 @@ The deploy-locked source was committed and verified on 2026-08-30:
 Commit `a018a14` added the default-off Hugo integration, strict artifact checker,
 negative integration suite, and variable-controlled Actions path. Commit
 `dff95ce` documented its release gates. Workflow run `33325924825` validated and
-deployed that exact commit with the production variables still off. After the
-remote Worker passed its gates, the paired repository variables were set and
-workflow-dispatch run `33326472515` built and deployed the same exact commit in
-enabled mode; both jobs succeeded.
+deployed that exact commit with the production variables still off. The first
+enabled release was subsequently verified at 320, 390, and 1440 CSS pixels, then
+temporarily disabled while its personalized Worker origin was retired. The
+privacy-cleanup workflow runs and their artifacts were deleted, so their IDs are
+intentionally not retained here.
 
-The live root, archive, post, and custom 404 were downloaded after that enabled
-deployment. All four were byte-for-byte identical to a strict local build using
-the real Worker origin. Each ordinary page contains exactly one pixel, one SVG
-map, and one text alternative; the 404 contains none. Chromium loaded only the
-site's own assets plus the two approved Worker image routes, emitted no console
-warning or error, loaded LXGW WenKai GB and Newsreader, and showed no horizontal
-overflow at 320, 390, or 1440 CSS pixels. The header, post-list, and footer axes
-aligned exactly at each width, the map remained 2:1, and the theme and text-link
-targets remained 44 px tall. Light and dark screenshots passed final visual
-review before release documentation was committed.
+The all-time release adds one additive D1 migration and preserves the original
+daily rows for a 90-day rollback window. Its backfill and triggers were applied
+and validated remotely before the Worker was updated. The account workers.dev
+subdomain was replaced with a neutral value; the old personalized hostname no
+longer serves the Worker. The neutral origin remains outside the repository and
+must be set only through the paired production Actions variables when the Pages
+release is enabled. No account ID, database ID, credential, or deployable
+Wrangler configuration is committed.
 
-The aggregate query can read up to 25,920 retained rows in the theoretical
-maximum, and Cloudflare's Cache API is data-center-local. A distributed abuser
+The all-time aggregate query reads at most 288 coarse-cell rows, and
+Cloudflare's Cache API is data-center-local. A distributed abuser
 could therefore exhaust a free daily read/request quota and make the map
 temporarily unavailable. That must fail closed and remain a documented
 availability trade-off; it must never trigger a paid upgrade.
@@ -297,7 +309,7 @@ Do not infer or implement these without a later explicit user decision:
 | Decision | Current state |
 | --- | --- |
 | Custom domain | Not selected; no `CNAME` or DNS configuration |
-| Anonymous visitor map deployment | Live on Workers Free and D1 Free through paired Actions variables; committed Hugo config remains default-off, and clearing both variables plus redeploying is the rollback |
+| Anonymous visitor map deployment | One Workers Free service and one D1 Free database are provisioned; production enablement uses paired Actions variables, committed Hugo config remains default-off, and clearing both variables plus redeploying is the rollback |
 | Comments, forms, search, or CMS | Not selected |
 | Project/content license | Not selected; third-party font licenses only |
 | Author bio, portrait, social links, or additional sections | Not supplied |

@@ -26,13 +26,6 @@ PIXEL_TAG_RE = re.compile(
     r"<img\b[^>]*\bdata-visitor-map=(?:\"pixel\"|'pixel'|pixel)(?=[\s>])[^>]*>",
     re.IGNORECASE,
 )
-SUMMARY_TAG_RE = re.compile(
-    r"<a\b[^>]*\bdata-visitor-map=(?:\"summary\"|'summary'|summary)(?=[\s>])[^>]*>"
-    r".*?</a>",
-    re.IGNORECASE | re.DOTALL,
-)
-
-
 class IntegrationFailure(RuntimeError):
     pass
 
@@ -277,10 +270,6 @@ def check_rejected_artifacts(
         match = find_required(PIXEL_TAG_RE, text, "visitor pixel image")
         return f"{text[:match.end()]}{match.group(0)}{text[match.end():]}"
 
-    def remove_summary(text: str) -> str:
-        match = find_required(SUMMARY_TAG_RE, text, "visitor summary link")
-        return f"{text[:match.start()]}{text[match.end():]}"
-
     def add_external_script(text: str) -> str:
         insertion = '<script src="https://cdn.example.invalid/tracker.js"></script>'
         marker = "</body>"
@@ -306,7 +295,6 @@ def check_rejected_artifacts(
         ("wrong-map-attribute", wrong_map_loading),
         ("forbidden-map-srcset", add_map_srcset),
         ("duplicate-pixel", duplicate_pixel),
-        ("missing-summary", remove_summary),
         ("external-active-resource", add_external_script),
         ("non-pixel-empty-alt", add_empty_alt_image),
         ("unexpected-worker-link", add_unexpected_worker_link),

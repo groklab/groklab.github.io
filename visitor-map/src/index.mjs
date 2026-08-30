@@ -9,12 +9,13 @@ import {
 } from "./constants.mjs";
 import {
   coarseCell,
-  isAllowedDocumentRequest,
   isAllowedImageRequest,
-  rollingCutoffDay,
+  rollbackCutoffDay,
   utcDay,
 } from "./privacy.mjs";
-import { renderMapHtml, renderMapSvg } from "./render.mjs";
+import { renderMapSvg } from "./render.mjs";
+
+const MAP_CACHE_POLICY = "all-time-v2";
 
 export const SQL = Object.freeze({
   claimDailyBudget: `
@@ -30,12 +31,10 @@ export const SQL = Object.freeze({
     ON CONFLICT(day, lat_band, lon_band) DO UPDATE
     SET hits = MIN(cell_day.hits + 1, ?4)
   `,
-  aggregateWindow: `
-    SELECT lat_band, lon_band, SUM(hits) AS hits
-    FROM cell_day
-    WHERE day >= ?1 AND day <= ?2
-    GROUP BY lat_band, lon_band
-    HAVING SUM(hits) >= ?3
+  aggregateAllTime: `
+    SELECT lat_band, lon_band, hits
+    FROM cell_total
+    WHERE hits >= ?1
     ORDER BY lat_band, lon_band
   `,
   pruneCells: "DELETE FROM cell_day WHERE day < ?1",
@@ -67,18 +66,6 @@ function imageHeaders({ cacheControl = PIXEL_CACHE_CONTROL } = {}) {
     "Cross-Origin-Resource-Policy": "cross-origin",
     "Content-Security-Policy":
       "default-src 'none'; style-src 'none'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; sandbox",
-  };
-}
-
-function htmlHeaders() {
-  return {
-    ...commonHeaders(),
-    "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": MAP_CACHE_CONTROL,
-    "Cross-Origin-Resource-Policy": "same-origin",
-    "Content-Security-Policy":
-      "default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
-    "X-Frame-Options": "DENY",
   };
 }
 
@@ -114,10 +101,10 @@ async function recordAggregateRequest(request, env, now) {
     .run();
 }
 
-async function aggregateRows(env, startDay, endDay) {
+async function aggregateRows(env) {
   if (!env?.DB) throw new Error("aggregate storage unavailable");
-  const result = await env.DB.prepare(SQL.aggregateWindow)
-    .bind(startDay, endDay, PUBLIC_THRESHOLD)
+  const result = await env.DB.prepare(SQL.aggregateAllTime)
+    .bind(PUBLIC_THRESHOLD)
     .all();
   return Array.isArray(result?.results) ? result.results : [];
 }
@@ -126,11 +113,17 @@ function edgeCache() {
   return globalThis.caches?.default ?? null;
 }
 
+function mapCacheRequest(request) {
+  const url = new URL(request.url);
+  url.searchParams.set("__cache_policy", MAP_CACHE_POLICY);
+  return new Request(url, { method: "GET" });
+}
+
 async function cacheMatch(request) {
   const cache = edgeCache();
   if (!cache || request.method !== "GET") return null;
   try {
-    return await cache.match(new Request(request.url, { method: "GET" }));
+    return await cache.match(mapCacheRequest(request));
   } catch {
     return null;
   }
@@ -140,7 +133,7 @@ function cachePut(request, response, context) {
   const cache = edgeCache();
   if (!cache || !context?.waitUntil || request.method !== "GET" || !response.ok) return;
   const task = cache
-    .put(new Request(request.url, { method: "GET" }), response.clone())
+    .put(mapCacheRequest(request), response.clone())
     .catch(() => undefined);
   context.waitUntil(task);
 }
@@ -162,21 +155,28 @@ async function pixelResponse(request, env, context, now) {
   });
 }
 
-async function mapSvgResponse(request, env, context, now) {
+async function mapSvgResponse(request, env, context) {
   if (!isAllowedImageRequest(request)) {
     return textResponse("Forbidden\n", 403);
+  }
+
+  // A HEAD probe needs only the stable representation headers. Do not let it
+  // bypass the GET cache and turn into an unbounded D1 read primitive.
+  if (request.method === "HEAD") {
+    return headAwareResponse(request, "", {
+      status: 200,
+      headers: imageHeaders({ cacheControl: MAP_CACHE_CONTROL }),
+    });
   }
 
   const cached = await cacheMatch(request);
   if (cached) return cached;
 
-  const endDay = utcDay(now);
-  const startDay = rollingCutoffDay(now);
   try {
-    const rows = await aggregateRows(env, startDay, endDay);
+    const rows = await aggregateRows(env);
     const response = headAwareResponse(
       request,
-      renderMapSvg(rows, { startDay, endDay }),
+      renderMapSvg(rows),
       { status: 200, headers: imageHeaders({ cacheControl: MAP_CACHE_CONTROL }) },
     );
     cachePut(request, response, context);
@@ -184,36 +184,8 @@ async function mapSvgResponse(request, env, context, now) {
   } catch {
     return headAwareResponse(
       request,
-      renderMapSvg([], { startDay, endDay }),
+      renderMapSvg([]),
       { status: 503, headers: imageHeaders() },
-    );
-  }
-}
-
-async function mapHtmlResponse(request, env, context, now) {
-  if (!isAllowedDocumentRequest(request)) {
-    return textResponse("Forbidden\n", 403);
-  }
-
-  const cached = await cacheMatch(request);
-  if (cached) return cached;
-
-  const endDay = utcDay(now);
-  const startDay = rollingCutoffDay(now);
-  try {
-    const rows = await aggregateRows(env, startDay, endDay);
-    const response = headAwareResponse(
-      request,
-      renderMapHtml(rows, { startDay, endDay }),
-      { status: 200, headers: htmlHeaders() },
-    );
-    cachePut(request, response, context);
-    return response;
-  } catch {
-    return headAwareResponse(
-      request,
-      renderMapHtml([], { startDay, endDay }),
-      { status: 503, headers: { ...htmlHeaders(), "Cache-Control": "no-store" } },
     );
   }
 }
@@ -273,9 +245,7 @@ export async function handleRequest(
     case "/v1/pixel.svg":
       return pixelResponse(request, env, context, now);
     case "/v1/map.svg":
-      return mapSvgResponse(request, env, context, now);
-    case "/v1/map":
-      return mapHtmlResponse(request, env, context, now);
+      return mapSvgResponse(request, env, context);
     case "/healthz":
       return healthResponse(request);
     default:
@@ -283,12 +253,11 @@ export async function handleRequest(
   }
 }
 
-export async function pruneExpiredAggregates(env, now = new Date()) {
+export async function pruneRollbackState(env, now = new Date()) {
   if (!env?.DB) return;
-  const cutoff = rollingCutoffDay(now);
   await env.DB.batch([
-    env.DB.prepare(SQL.pruneCells).bind(cutoff),
-    env.DB.prepare(SQL.pruneBudgets).bind(cutoff),
+    env.DB.prepare(SQL.pruneCells).bind(rollbackCutoffDay(now)),
+    env.DB.prepare(SQL.pruneBudgets).bind(utcDay(now)),
   ]);
 }
 
@@ -297,6 +266,6 @@ export default {
     return handleRequest(request, env, context);
   },
   scheduled(controller, env, context) {
-    context.waitUntil(pruneExpiredAggregates(env, new Date(controller.scheduledTime)));
+    context.waitUntil(pruneRollbackState(env, new Date(controller.scheduledTime)));
   },
 };

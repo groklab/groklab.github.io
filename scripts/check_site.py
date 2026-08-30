@@ -61,14 +61,38 @@ WORKERS_DEV_ORIGIN_RE = re.compile(
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.workers\.dev"
 )
 VISITOR_MAP_ALT = (
-    "匿名聚合页面请求世界地图；显示过去 90 个 UTC 日内达到五次页面请求阈值的 "
+    "匿名聚合页面请求世界地图；显示自启用以来至少成功计入一次页面请求的 "
     "15 度网格，不代表独立访客。"
 )
 VISITOR_MAP_PATHS = {
     "pixel": "/v1/pixel.svg",
     "map": "/v1/map.svg",
-    "summary": "/v1/map",
 }
+EXPECTED_ICON_LINKS = [
+    {
+        "rel": "icon",
+        "href": "/favicon.ico",
+        "type": "image/x-icon",
+        "sizes": "16x16 32x32 48x48",
+    },
+    {
+        "rel": "icon",
+        "href": "/favicon-32x32.png",
+        "type": "image/png",
+        "sizes": "32x32",
+    },
+    {
+        "rel": "icon",
+        "href": "/favicon.svg",
+        "type": "image/svg+xml",
+        "sizes": "any",
+    },
+    {
+        "rel": "apple-touch-icon",
+        "href": "/apple-touch-icon.png",
+        "sizes": "180x180",
+    },
+]
 ACTIVE_RESOURCE_REFERENCES = {
     ("base", "href"),
     ("embed", "src"),
@@ -113,6 +137,7 @@ class HTMLDocument:
     )
     theme_toggles: list[dict[str, str | None]] = field(default_factory=list)
     head_assets: list[tuple[str, str]] = field(default_factory=list)
+    icon_links: list[dict[str, str | None]] = field(default_factory=list)
     post_entry_count: int = 0
 
     @property
@@ -183,6 +208,8 @@ class DocumentParser(html.parser.HTMLParser):
         if tag == "link":
             rel = {part.casefold() for part in (attributes.get("rel") or "").split()}
             href = attributes.get("href")
+            if "icon" in rel or "apple-touch-icon" in rel:
+                self.document.icon_links.append(attributes)
             if "stylesheet" in rel and href:
                 self.document.head_assets.append(("stylesheet", href))
             if "canonical" in rel and href:
@@ -467,30 +494,6 @@ def validate_visitor_map_element(
         for forbidden in ("fetchpriority", "srcset"):
             if forbidden in attributes:
                 errors.append(f"{context}: {forbidden} is not allowed")
-    elif kind == "summary":
-        if tag != "a":
-            return [f"{context}: visitor summary must be an <a>, found <{tag}>"]
-        errors.extend(
-            validate_required_attributes(
-                attributes,
-                {
-                    "data-visitor-map": "summary",
-                    "href": visitor_endpoint(origin, "summary"),
-                    "hreflang": "zh-CN",
-                    "referrerpolicy": "no-referrer",
-                    "aria-label": "查看匿名访问地区文字版",
-                },
-                context,
-            )
-        )
-        rel_parts = (attributes.get("rel") or "").split()
-        if len(rel_parts) != 2 or set(rel_parts) != {"external", "nofollow"}:
-            errors.append(
-                f"{context}: rel must contain exactly 'external' and 'nofollow'"
-            )
-        for forbidden in ("target", "ping", "download"):
-            if forbidden in attributes:
-                errors.append(f"{context}: {forbidden} is not allowed")
     else:
         errors.append(f"{context}: unknown data-visitor-map value {kind!r}")
     return errors
@@ -505,7 +508,7 @@ def validate_visitor_map_document(
 ) -> list[str]:
     errors: list[str] = []
     expected_on_page = visitor_map_origin is not None and not is_404
-    expected_occurrences = 3 if expected_on_page else 0
+    expected_occurrences = 2 if expected_on_page else 0
     actual_occurrences = document.source.casefold().count("workers.dev")
     if actual_occurrences != expected_occurrences:
         errors.append(
@@ -592,19 +595,14 @@ def validate_external_reference(
 
     if tag == "a":
         # Ordinary external links are content, not active subresources. The
-        # visitor-map checker separately constrains every workers.dev link.
+        # visitor-map has no public document route, so every workers.dev link
+        # is unexpected even while its two image resources are enabled.
         worker_origin = workers_dev_origin(value)
         if worker_origin is not None:
-            expected = (
-                visitor_endpoint(visitor_map_origin, "summary")
-                if visitor_map_origin is not None
-                else None
+            return (
+                [f"{context}: unexpected workers.dev link: {value}"],
+                True,
             )
-            if value != expected:
-                return (
-                    [f"{context}: unexpected workers.dev link: {value}"],
-                    True,
-                )
         return ([], True)
 
     if (
@@ -664,6 +662,19 @@ def validate_html_documents(
             errors.append(
                 f"{context}: canonical must be {expected_canonical(relative)}, "
                 f"found {document.canonicals[0]}"
+            )
+
+        actual_icon_links = [
+            {name: attributes.get(name) for name in expected}
+            for attributes, expected in zip(document.icon_links, EXPECTED_ICON_LINKS)
+        ]
+        if (
+            len(document.icon_links) != len(EXPECTED_ICON_LINKS)
+            or actual_icon_links != EXPECTED_ICON_LINKS
+        ):
+            errors.append(
+                f"{context}: favicon links must match the SVG, PNG, ICO, and "
+                "Apple Touch contract"
             )
 
         if document.duplicate_ids:

@@ -4,11 +4,10 @@ import test from "node:test";
 import {
   default as worker,
   handleRequest,
-  pruneExpiredAggregates,
+  pruneRollbackState,
   SQL,
 } from "../src/index.mjs";
 import {
-  documentRequest,
   executionContext,
   imageRequest,
   MockD1,
@@ -16,7 +15,7 @@ import {
 
 const NOW = new Date("2026-08-30T12:34:56.000Z");
 
-test("eligible pixel returns a no-store SVG and writes only day and coarse bands", async () => {
+test("eligible pixel issues the budget and daily-buffer writes used by the total trigger", async () => {
   const database = new MockD1();
   const context = executionContext();
   const response = await handleRequest(imageRequest("/v1/pixel.svg"), { DB: database }, context, {
@@ -85,10 +84,10 @@ test("storage failures fail closed without changing the pixel response", async (
   assert.match(await response.text(), /^<svg/);
 });
 
-test("map SVG queries exactly the rolling window and threshold", async () => {
+test("map SVG queries the bounded all-time table at threshold one", async () => {
   const database = new MockD1({
     aggregateRows: [
-      { lat_band: 8, lon_band: 6, hits: 4 },
+      { lat_band: 8, lon_band: 6, hits: 1 },
       { lat_band: 8, lon_band: 7, hits: 12 },
     ],
   });
@@ -103,13 +102,33 @@ test("map SVG queries exactly the rolling window and threshold", async () => {
   assert.equal(response.headers.get("cache-control"), "public, max-age=300, s-maxage=1800, stale-while-revalidate=300");
   assert.match(response.headers.get("content-security-policy"), /default-src 'none'/);
   assert.equal(database.calls.length, 1);
-  assert.deepEqual(database.calls[0].binds, ["2026-06-02", "2026-08-30", 5]);
-  assert.equal((body.match(/class="aggregate-cell"/g) ?? []).length, 1);
+  assert.match(database.calls[0].sql, /FROM cell_total/);
+  assert.doesNotMatch(database.calls[0].sql, /cell_day|SUM\(|GROUP BY|day >=/);
+  assert.deepEqual(database.calls[0].binds, [1]);
+  assert.equal((body.match(/class="aggregate-cell"/g) ?? []).length, 2);
+  assert.match(body, /1–4 次页面请求/);
   assert.match(body, /10–24 次页面请求/);
   assert.doesNotMatch(body, /12 次页面请求/);
 });
 
-test("map endpoints return safe 503 representations if D1 is unavailable", async () => {
+test("map HEAD returns representation headers without cache or D1 access", async () => {
+  const database = new MockD1();
+  const response = await handleRequest(
+    imageRequest("/v1/map.svg", { method: "HEAD" }),
+    { DB: database },
+    executionContext(),
+    { now: NOW },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(
+    response.headers.get("cache-control"),
+    "public, max-age=300, s-maxage=1800, stale-while-revalidate=300",
+  );
+  assert.equal(await response.text(), "");
+  assert.equal(database.calls.length, 0);
+});
+
+test("SVG map returns a safe 503 representation if D1 is unavailable", async () => {
   const svg = await handleRequest(
     imageRequest("/v1/map.svg"),
     {},
@@ -119,28 +138,21 @@ test("map endpoints return safe 503 representations if D1 is unavailable", async
   assert.equal(svg.status, 503);
   assert.equal(svg.headers.get("cache-control"), "no-store, max-age=0");
   assert.match(await svg.text(), /<svg/);
-
-  const html = await handleRequest(documentRequest("/v1/map"), {}, executionContext(), {
-    now: NOW,
-  });
-  assert.equal(html.status, 503);
-  assert.equal(html.headers.get("cache-control"), "no-store");
-  assert.match(await html.text(), /尚无网格达到公开阈值/);
 });
 
-test("HTML map supports top-level navigation and has defensive headers", async () => {
-  const database = new MockD1({ aggregateRows: [{ lat_band: 8, lon_band: 6, hits: 9 }] });
-  const response = await handleRequest(
-    documentRequest("/v1/map"),
-    { DB: database },
-    executionContext(),
-    { now: NOW },
-  );
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("x-frame-options"), "DENY");
-  assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
-  assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin");
-  assert.match(await response.text(), /5–9/);
+test("removed HTML map route returns 404 without touching D1", async () => {
+  for (const method of ["GET", "HEAD"]) {
+    const database = new MockD1();
+    const response = await handleRequest(
+      new Request("https://map.example/v1/map", { method }),
+      { DB: database },
+      executionContext(),
+      { now: NOW },
+    );
+    assert.equal(response.status, 404);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(database.calls.length, 0);
+  }
 });
 
 test("preflight is exact-origin, method-limited, and header-free", async () => {
@@ -181,15 +193,17 @@ test("preflight is exact-origin, method-limited, and header-free", async () => {
   }
 });
 
-test("edge cache hits bypass D1 and cache failures fall back safely", async () => {
+test("versioned edge-cache hits bypass D1 and cache failures fall back safely", async () => {
   const originalCaches = globalThis.caches;
   try {
     const cachedBody = "<svg data-test=\"cached\"></svg>";
+    const matchedUrls = [];
     Object.defineProperty(globalThis, "caches", {
       configurable: true,
       value: {
         default: {
-          async match() {
+          async match(request) {
+            matchedUrls.push(request.url);
             return new Response(cachedBody, {
               headers: { "Content-Type": "image/svg+xml" },
             });
@@ -211,17 +225,25 @@ test("edge cache hits bypass D1 and cache failures fall back safely", async () =
     );
     assert.equal(await hit.text(), cachedBody);
     assert.equal(hitDatabase.calls.length, 0);
+    assert.deepEqual(matchedUrls, [
+      "https://map.example/v1/map.svg?__cache_policy=all-time-v2",
+    ]);
+    assert.notEqual(matchedUrls[0], "https://map.example/v1/map.svg");
 
     let putAttempts = 0;
+    let failedMatchUrl = null;
+    let failedPutUrl = null;
     Object.defineProperty(globalThis, "caches", {
       configurable: true,
       value: {
         default: {
-          async match() {
+          async match(request) {
+            failedMatchUrl = request.url;
             throw new Error("simulated cache miss failure");
           },
-          async put() {
+          async put(request) {
             putAttempts += 1;
+            failedPutUrl = request.url;
             throw new Error("simulated cache write failure");
           },
         },
@@ -241,6 +263,11 @@ test("edge cache hits bypass D1 and cache failures fall back safely", async () =
     assert.equal(miss.status, 200);
     assert.equal(missDatabase.calls.length, 1);
     assert.equal(putAttempts, 1);
+    assert.equal(
+      failedMatchUrl,
+      "https://map.example/v1/map.svg?__cache_policy=all-time-v2",
+    );
+    assert.equal(failedPutUrl, failedMatchUrl);
   } finally {
     if (originalCaches === undefined) Reflect.deleteProperty(globalThis, "caches");
     else Object.defineProperty(globalThis, "caches", { configurable: true, value: originalCaches });
@@ -264,13 +291,13 @@ test("health is storage-independent, while methods and query strings are rejecte
   assert.equal((await handleRequest(new Request("https://map.example/missing"))).status, 404);
 });
 
-test("scheduled retention deletes only aggregate days older than the window", async () => {
+test("scheduled retention keeps a 90-day daily buffer and only today's budget", async () => {
   const database = new MockD1();
-  await pruneExpiredAggregates({ DB: database }, NOW);
+  await pruneRollbackState({ DB: database }, NOW);
   assert.equal(database.batches.length, 1);
   assert.deepEqual(database.batches[0].map((item) => item.binds), [
     ["2026-06-02"],
-    ["2026-06-02"],
+    ["2026-08-30"],
   ]);
   assert.equal(database.batches[0][0].sql, SQL.pruneCells);
   assert.equal(database.batches[0][1].sql, SQL.pruneBudgets);

@@ -89,14 +89,3 @@ export function imageRequest(
   });
   return request;
 }
-
-export function documentRequest(pathname, { method = "GET", site = "cross-site" } = {}) {
-  return new Request(`https://map.example${pathname}`, {
-    method,
-    headers: {
-      "Sec-Fetch-Dest": "document",
-      "Sec-Fetch-Mode": "navigate",
-      "Sec-Fetch-Site": site,
-    },
-  });
-}

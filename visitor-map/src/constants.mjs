@@ -3,10 +3,12 @@ export const ALLOWED_ORIGIN = "https://groklab.github.io";
 export const CELL_DEGREES = 15;
 export const LATITUDE_BAND_COUNT = 12;
 export const LONGITUDE_BAND_COUNT = 24;
-export const PUBLIC_THRESHOLD = 5;
-export const ROLLING_DAYS = 90;
+export const PUBLIC_THRESHOLD = 1;
+export const ROLLBACK_RETENTION_DAYS = 90;
 
-// Each accepted request performs at most two D1 row writes. The limit leaves
+// Each accepted request performs at most three D1 row writes: budget, daily
+// rollback buffer, and the all-time total maintained by a database trigger.
+// The limit leaves
 // substantial room below the free daily Worker/D1 ceilings for reads, retries,
 // maintenance, and future traffic growth.
 export const DAILY_REQUEST_LIMIT = 20_000;

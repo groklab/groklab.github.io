@@ -231,6 +231,10 @@ a:hover {
   padding-left: 0.72rem;
 }
 
+.brand-tagline__false {
+  margin-left: 0.0625rem;
+}
+
 .brand-tagline__true,
 .brand-tagline__false {
   grid-row: 1;
@@ -825,13 +829,6 @@ a.post-entry__title:hover {
   font-size: 0.75rem;
   letter-spacing: 0.015em;
   line-height: 1.65;
-}
-
-.visitor-map__text-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  margin-top: 0.15rem;
 }
 
 .visitor-map__pixel {

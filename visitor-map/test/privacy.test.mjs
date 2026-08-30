@@ -5,14 +5,13 @@ import {
   cellBounds,
   coarseCell,
   escapeMarkup,
-  isAllowedDocumentRequest,
   isAllowedImageRequest,
   publicCells,
   publicCountRange,
-  rollingCutoffDay,
+  rollbackCutoffDay,
   utcDay,
 } from "../src/privacy.mjs";
-import { documentRequest, imageRequest } from "./helpers/mock-d1.mjs";
+import { imageRequest } from "./helpers/mock-d1.mjs";
 
 test("coarseCell reduces valid edge coordinates to fixed 15-degree bands", () => {
   assert.deepEqual(coarseCell(-90, -180), { latBand: 0, lonBand: 0 });
@@ -28,10 +27,10 @@ test("coarseCell rejects missing, non-finite, and out-of-range geography", () =>
   assert.equal(coarseCell(0, 180.01), null);
 });
 
-test("rolling window includes today and the preceding 89 UTC days", () => {
+test("private rollback buffer includes today and the preceding 89 UTC days", () => {
   const now = new Date("2026-08-30T23:59:59.000Z");
   assert.equal(utcDay(now), "2026-08-30");
-  assert.equal(rollingCutoffDay(now), "2026-06-02");
+  assert.equal(rollbackCutoffDay(now), "2026-06-02");
 });
 
 test("image validation requires exact origin and all Fetch Metadata", () => {
@@ -54,38 +53,25 @@ test("image validation requires exact origin and all Fetch Metadata", () => {
   );
 });
 
-test("document validation allows public top-level navigation and same-origin reloads", () => {
-  assert.equal(isAllowedDocumentRequest(documentRequest("/v1/map")), true);
-  assert.equal(isAllowedDocumentRequest(documentRequest("/v1/map", { site: "none" })), true);
-  assert.equal(isAllowedDocumentRequest(documentRequest("/v1/map", { site: "same-origin" })), true);
-  assert.equal(isAllowedDocumentRequest(new Request("https://map.example/v1/map")), true);
-  assert.equal(
-    isAllowedDocumentRequest(imageRequest("/v1/map", { destination: "document" })),
-    false,
-  );
-  assert.equal(
-    isAllowedDocumentRequest(
-      new Request("https://map.example/v1/map", {
-        headers: { Origin: "https://attacker.example" },
-      }),
-    ),
-    false,
-  );
-});
-
 test("public count ranges threshold and cap exact aggregate values", () => {
-  assert.equal(publicCountRange(4), null);
+  assert.equal(publicCountRange(0), null);
+  assert.equal(publicCountRange(Number.NaN), null);
+  assert.deepEqual(publicCountRange(1), { key: "1-4", label: "1–4" });
+  assert.equal(publicCountRange(4).label, "1–4");
   assert.deepEqual(publicCountRange(5), { key: "5-9", label: "5–9" });
+  assert.equal(publicCountRange(9).label, "5–9");
+  assert.equal(publicCountRange(10).label, "10–24");
   assert.equal(publicCountRange(24).label, "10–24");
+  assert.equal(publicCountRange(25).label, "25–99");
   assert.equal(publicCountRange(99).label, "25–99");
   assert.equal(publicCountRange(100).label, "100+");
-  assert.equal(publicCountRange(999_999).label, "100+");
+  assert.equal(publicCountRange(2_000_000_000).label, "100+");
 });
 
 test("publicCells discards sub-threshold and invalid cells", () => {
   const cells = publicCells([
-    { lat_band: 8, lon_band: 6, hits: 4 },
-    { lat_band: 8, lon_band: 6, hits: 5 },
+    { lat_band: 8, lon_band: 6, hits: 0 },
+    { lat_band: 8, lon_band: 6, hits: 1 },
     { lat_band: 99, lon_band: 6, hits: 500 },
   ]);
   assert.equal(cells.length, 1);

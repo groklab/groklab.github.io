@@ -14,6 +14,10 @@ function sourceText() {
     .join("\n");
 }
 
+function migrationText(name) {
+  return readFileSync(join(root, "migrations", name), "utf8");
+}
+
 test("project has no package-manager files or deployable default config", () => {
   for (const name of [
     "package.json",
@@ -29,21 +33,49 @@ test("project has no package-manager files or deployable default config", () => 
   assert.equal(existsSync(join(root, "wrangler.template.jsonc")), true);
 });
 
-test("D1 schema permits only daily aggregate keys and bounded counters", () => {
+test("D1 migrations retain bounded daily rollback data and add capped all-time totals", () => {
   const migrationNames = readdirSync(join(root, "migrations"))
     .filter((name) => name.endsWith(".sql"))
     .sort();
-  assert.deepEqual(migrationNames, ["0001_aggregate_counts.sql"]);
-  const schema = migrationNames
-    .map((name) => readFileSync(join(root, "migrations", name), "utf8"))
-    .join("\n");
-  assert.match(schema, /CREATE TABLE cell_day/);
-  assert.match(schema, /PRIMARY KEY \(day, lat_band, lon_band\)/);
+  assert.deepEqual(migrationNames, [
+    "0001_aggregate_counts.sql",
+    "0002_all_time_counts.sql",
+  ]);
+
+  const dailySchema = migrationText("0001_aggregate_counts.sql");
+  const totalSchema = migrationText("0002_all_time_counts.sql");
+  const schema = `${dailySchema}\n${totalSchema}`;
+
+  assert.match(dailySchema, /CREATE TABLE cell_day/);
+  assert.match(dailySchema, /PRIMARY KEY \(day, lat_band, lon_band\)/);
+  assert.match(dailySchema, /hits BETWEEN 1 AND 2000/);
+  assert.match(dailySchema, /accepted BETWEEN 1 AND 20000/);
+
+  assert.match(totalSchema, /CREATE TABLE cell_total/);
+  assert.match(totalSchema, /PRIMARY KEY \(lat_band, lon_band\)/);
+  assert.match(totalSchema, /hits BETWEEN 1 AND 2000000000/);
+  assert.match(
+    totalSchema,
+    /INSERT INTO cell_total[\s\S]*SELECT lat_band, lon_band, MIN\(SUM\(hits\), 2000000000\)[\s\S]*FROM cell_day[\s\S]*GROUP BY lat_band, lon_band/,
+  );
+  assert.match(totalSchema, /CREATE TRIGGER cell_day_total_after_insert/);
+  assert.match(totalSchema, /AFTER INSERT ON cell_day/);
+  assert.match(totalSchema, /CREATE TRIGGER cell_day_total_after_update/);
+  assert.match(totalSchema, /AFTER UPDATE OF hits ON cell_day/);
+  assert.match(totalSchema, /WHEN NEW\.hits > OLD\.hits/);
+  assert.match(totalSchema, /NEW\.hits - OLD\.hits/);
+  assert.match(
+    totalSchema,
+    /SET hits = MIN\(cell_total\.hits \+ excluded\.hits, 2000000000\)/,
+  );
+  assert.doesNotMatch(totalSchema, /AFTER DELETE|DROP TABLE\s+cell_day/i);
+
   assert.match(schema, /lat_band BETWEEN 0 AND 11/);
   assert.match(schema, /lon_band BETWEEN 0 AND 23/);
-  assert.match(schema, /hits BETWEEN 1 AND 2000/);
-  assert.match(schema, /accepted BETWEEN 1 AND 20000/);
-  assert.doesNotMatch(schema, /\b(ip|address|user_agent|visitor_id|digest|latitude|longitude|timestamp|referrer|path)\b/i);
+  assert.doesNotMatch(
+    schema,
+    /\b(ip|address|user_agent|visitor_id|digest|latitude|longitude|timestamp|referrer|path)\b/i,
+  );
 });
 
 test("Worker source never reads identifying request headers or creates event fields", () => {
@@ -55,8 +87,14 @@ test("Worker source never reads identifying request headers or creates event fie
     .replaceAll("request.cf?.latitude", "")
     .replaceAll("request.cf?.longitude", "");
   assert.doesNotMatch(withoutAllowedGeography, /request\.cf/);
-  assert.match(source, /HAVING SUM\(hits\) >= \?3/);
+  assert.match(source, /PUBLIC_THRESHOLD = 1/);
   assert.match(source, /DAILY_REQUEST_LIMIT = 20_000/);
+  assert.match(source, /CELL_DAILY_LIMIT = 2_000/);
+  assert.match(source, /ROLLBACK_RETENTION_DAYS = 90/);
+  assert.match(source, /FROM cell_total[\s\S]*WHERE hits >= \?1/);
+  assert.doesNotMatch(source, /aggregateWindow|HAVING SUM\(hits\)|renderMapHtml/);
+  assert.doesNotMatch(source, /["']\/v1\/map["']/);
+  assert.match(source, /MAP_CACHE_POLICY = "all-time-v2"/);
 });
 
 test("Wrangler template is visibly locked and disables logs", () => {

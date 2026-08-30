@@ -4,7 +4,7 @@ import {
   LATITUDE_BAND_COUNT,
   LONGITUDE_BAND_COUNT,
   PUBLIC_THRESHOLD,
-  ROLLING_DAYS,
+  ROLLBACK_RETENTION_DAYS,
 } from "./constants.mjs";
 
 const DAY_MILLISECONDS = 86_400_000;
@@ -17,12 +17,14 @@ export function utcDay(value = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
-export function rollingCutoffDay(value = new Date()) {
+export function rollbackCutoffDay(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   if (!Number.isFinite(date.getTime())) {
     throw new TypeError("A valid date is required");
   }
-  return utcDay(new Date(date.getTime() - (ROLLING_DAYS - 1) * DAY_MILLISECONDS));
+  return utcDay(
+    new Date(date.getTime() - (ROLLBACK_RETENTION_DAYS - 1) * DAY_MILLISECONDS),
+  );
 }
 
 export function coarseCell(latitudeValue, longitudeValue) {
@@ -73,24 +75,10 @@ export function isAllowedImageRequest(request) {
   );
 }
 
-export function isAllowedDocumentRequest(request) {
-  const origin = request.headers.get("Origin");
-  const site = request.headers.get("Sec-Fetch-Site");
-  const destination = request.headers.get("Sec-Fetch-Dest");
-  const mode = request.headers.get("Sec-Fetch-Mode");
-
-  return (
-    (request.method === "GET" || request.method === "HEAD") &&
-    (origin === null || origin === ALLOWED_ORIGIN) &&
-    (destination === null || destination === "document") &&
-    (mode === null || mode === "navigate") &&
-    (site === null || site === "cross-site" || site === "same-origin" || site === "none")
-  );
-}
-
 export function publicCountRange(countValue) {
   const count = Number(countValue);
   if (!Number.isFinite(count) || count < PUBLIC_THRESHOLD) return null;
+  if (count < 5) return { key: "1-4", label: "1–4" };
   if (count < 10) return { key: "5-9", label: "5–9" };
   if (count < 25) return { key: "10-24", label: "10–24" };
   if (count < 100) return { key: "25-99", label: "25–99" };

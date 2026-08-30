@@ -74,17 +74,16 @@
 - The visitor map is approved only as anonymous aggregate geography. Collection
   must use a no-JavaScript image request; never store or expose raw IPs, stable
   visitor hashes, individual timestamps, or individual visitor pins. Public
-  output uses thresholded 15-degree squares, never dots or pins; the threshold
-  is five page requests, not five distinct people, and exact counts remain
-  private. All external-service details and credentials stay out of the
-  repository.
+  output uses all-time 15-degree squares from the first successfully counted
+  request, never dots or pins, and exact counts remain private. All
+  external-service details and credentials stay out of the repository.
 - The committed Hugo configuration keeps the visitor map disabled with an empty
   origin. Production enablement is a strict two-key latch supplied only by the
   `VISITOR_MAP_ENABLED` and `VISITOR_MAP_ORIGIN` GitHub Actions variables.
   Disabled output must contain no Worker URL or visitor-map element; enabled
-  output uses only the fixed pixel, SVG-map, and text-summary routes and omits
+  output uses only the fixed pixel and SVG-map routes and omits
   collection from the 404 page.
-- Production currently enables that latch against the verified Workers Free
+- Production enablement uses that latch against the verified Workers Free
   service and D1 Free database named `groklab-visitor-map`. Treat the existing
   resources as durable state: inventory and inspect them before any update, do
   not create replacements implicitly, and preserve the committed default-off
