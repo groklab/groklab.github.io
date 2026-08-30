@@ -1,0 +1,51 @@
+{{- $alt := .PlainText -}}
+{{- if not $alt -}}
+  {{- errorf "Image %q is missing alternative text: see %s" .Destination .Position -}}
+{{- else -}}
+  {{- $url := urls.Parse .Destination -}}
+  {{- if $url.IsAbs -}}
+    {{- errorf "Image %q must be stored inside its post bundle: see %s" .Destination .Position -}}
+  {{- else -}}
+    {{- $resourcePath := strings.TrimPrefix "./" $url.Path -}}
+    {{- $resource := .Page.Resources.GetMatch $resourcePath -}}
+    {{- with $resource -}}
+      {{- if not (reflect.IsImageResourceProcessable .) -}}
+        {{- errorf "Image %q is not in a Hugo-processable raster format: see %s" $.Destination $.Position -}}
+      {{- else -}}
+        {{- if $.IsBlock }}
+          <figure>
+        {{- end }}
+        {{- $fallback := . -}}
+        {{- if gt .Width 1200 -}}
+          {{- $fallback = .Resize "1200x q85" -}}
+        {{- end -}}
+        {{- $widths := slice -}}
+        {{- range slice 480 768 1200 -}}
+          {{- if le . $resource.Width -}}
+            {{- $widths = $widths | append . -}}
+          {{- end -}}
+        {{- end -}}
+        {{- if and (lt .Width 1200) (not (in $widths .Width)) -}}
+          {{- $widths = $widths | append .Width -}}
+        {{- end -}}
+        {{- $srcset := slice -}}
+        {{- range $widths -}}
+          {{- $image := $resource.Resize (printf "%dx webp q82" .) -}}
+          {{- $srcset = $srcset | append (printf "%s %dw" $image.RelPermalink $image.Width) -}}
+        {{- end }}
+        <picture>
+          <source type="image/webp" srcset="{{ delimit $srcset ", " }}" sizes="(max-width: 44rem) calc(100vw - 2rem), 44rem">
+          <img src="{{ $fallback.RelPermalink }}" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="{{ $alt }}" loading="lazy" decoding="async"{{ with $.Title }} title="{{ . }}"{{ end }}>
+        </picture>
+        {{- if $.IsBlock }}
+          {{- with $.Title }}
+            <figcaption>{{ . }}</figcaption>
+          {{- end }}
+          </figure>
+        {{- end -}}
+      {{- end -}}
+    {{- else -}}
+      {{- errorf "Image %q is not a page resource in this post bundle: see %s" $.Destination $.Position -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

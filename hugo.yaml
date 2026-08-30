@@ -1,0 +1,43 @@
+baseURL: https://groklab.github.io/
+title: "真假维斯"
+locale: zh-CN
+defaultContentLanguage: zh
+timeZone: America/Chicago
+hasCJKLanguage: true
+enableRobotsTXT: true
+enableGitInfo: false
+disableKinds:
+  - taxonomy
+  - term
+
+permalinks:
+  posts: /posts/:slug/
+
+outputs:
+  home:
+    - html
+    - rss
+  section:
+    - html
+
+params:
+  description: "真假维斯的个人写作。"
+
+markup:
+  goldmark:
+    extensions:
+      passthrough:
+        enable: true
+        delimiters:
+          block:
+            - ['\[', '\]']
+            - ['$$', '$$']
+          inline:
+            - ['\(', '\)']
+    parser:
+      wrapStandAloneImageWithinParagraph: false
+      attribute:
+        block: true
+        title: true
+    renderer:
+      unsafe: false

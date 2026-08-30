@@ -1,0 +1,11 @@
+# Hugo's generated site and cache. Source content belongs in content/.
+/public/
+/resources/_gen/
+/.hugo_build.lock
+
+# Python's local bytecode cache from validating the helper scripts.
+__pycache__/
+*.py[cod]
+
+# Local operating-system metadata.
+.DS_Store

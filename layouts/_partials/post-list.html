@@ -1,0 +1,15 @@
+{{- with . }}
+  <ol class="post-list" role="list">
+    {{- range . }}
+      <li class="post-entry">
+        <p class="post-entry__date">{{ partial "post-date.html" . }}</p>
+        <h2 class="post-entry__title"><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
+        {{- with .Summary }}
+          <div class="post-entry__summary">{{ . }}</div>
+        {{- end }}
+      </li>
+    {{- end }}
+  </ol>
+{{- else }}
+  <p>暂无文章。</p>
+{{- end }}

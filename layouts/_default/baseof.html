@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="{{ .Site.Language.Locale }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    {{- $pageTitle := .Site.Title -}}
+    {{- if not .IsHome -}}
+      {{- $pageTitle = printf "%s · %s" .Title .Site.Title -}}
+    {{- end }}
+    {{- if eq .Kind "404" -}}
+      {{- $pageTitle = printf "页面未找到 · %s" .Site.Title -}}
+    {{- end }}
+    <title>{{ $pageTitle }}</title>
+    {{- $description := .Site.Params.description -}}
+    {{- with .Description -}}
+      {{- $description = . -}}
+    {{- else -}}
+      {{- if .IsPage -}}
+        {{- $description = .Summary | plainify | strings.TrimSpace | truncate 160 -}}
+      {{- end -}}
+    {{- end }}
+    <meta name="description" content="{{ $description }}">
+    {{- if eq .Kind "404" }}
+      <meta name="robots" content="noindex">
+    {{- end }}
+    <link rel="canonical" href="{{ .Permalink }}">
+    {{- with .Site.Home.OutputFormats.Get "rss" }}
+      <link rel="alternate" type="application/rss+xml" title="{{ $.Site.Title }}" href="{{ .Permalink }}">
+    {{- end }}
+    <meta property="og:title" content="{{ $pageTitle }}">
+    <meta property="og:description" content="{{ $description }}">
+    <meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
+    <meta property="og:url" content="{{ .Permalink }}">
+    {{- if .IsPage }}
+      <meta property="article:published_time" content="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">
+    {{- end }}
+    <link rel="icon" href="{{ "favicon.svg" | relURL }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ "apple-touch-icon.png" | relURL }}">
+    {{- $styles := resources.Get "css/main.css" | minify | fingerprint "sha384" }}
+    <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}" crossorigin="anonymous">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    {{ partial "site-header.html" . }}
+    <main id="main-content" class="site-main" tabindex="-1">
+      {{ block "main" . }}{{ end }}
+    </main>
+    {{ partial "site-footer.html" . }}
+  </body>
+</html>

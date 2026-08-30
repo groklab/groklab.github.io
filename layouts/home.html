@@ -1,0 +1,9 @@
+{{ define "main" }}
+  <section class="home-latest" aria-labelledby="latest-posts">
+    <header class="home-intro">
+      <h1 id="latest-posts">最新文章</h1>
+    </header>
+    {{- $posts := where .Site.RegularPages "Section" "posts" -}}
+    {{ partial "post-list.html" ($posts.ByDate.Reverse | first 10) }}
+  </section>
+{{ end }}

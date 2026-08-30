@@ -1,0 +1,5 @@
+<footer class="site-footer">
+  {{- with .Site.Home.OutputFormats.Get "rss" }}
+    <a href="{{ .RelPermalink }}" rel="alternate" type="application/rss+xml">RSS</a>
+  {{- end }}
+</footer>
