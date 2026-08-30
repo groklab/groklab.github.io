@@ -137,7 +137,7 @@ git push origin main
 推送到 `main` 后，`.github/workflows/pages.yml` 会：
 
 1. 下载并校验固定版本的 Hugo Extended；
-2. 检查文章和数学渲染；
+2. 检查文章、数学渲染和响应式图片；
 3. 构建并检查完整静态站点；
 4. 将通过检查的产物部署到 GitHub Pages。
 

@@ -87,21 +87,36 @@ python3 scripts/check_site.py public
 
 See `README.md` for the beginner-oriented writing and publishing workflow.
 
-## Deployment state
+## Verified deployment state
 
-As of this update, the Hugo source, initial content, design, validation scripts,
-and Pages workflow exist locally and pass an isolated Hugo 0.165.0 production
-build. GitHub Pages may still report its old bootstrap branch source until the
-implementation is pushed and the source is switched to GitHub Actions.
+The first production launch was verified on 2026-08-30:
 
-Do not call the launch complete until all of the following are true:
+- The implementation and pipeline baseline is commit
+  `1409008c8894bd08f746af82edf19d9f845b4cf2`.
+- GitHub Pages reports `workflow` as its publishing source with HTTPS enforced.
+- Workflow run `33296489305`, dispatched after the source switch, built and
+  deployed that exact commit successfully.
+- The live root and archive return HTTP 200; an unknown route returns HTTP 404
+  with the custom Chinese missing-page content.
+- The live root, first post, CSS, icons, all four font files, RSS, sitemap, and
+  robots file were downloaded and validated. The live root, first-post HTML,
+  and fingerprinted CSS were byte-for-byte identical to the local strict Hugo
+  production artifact.
+- A real browser loaded the self-hosted LXGW and STIX fonts, reported no console
+  warnings or errors, contained no client scripts, and had no horizontal page
+  overflow at 390, 412, or 1440 CSS pixels.
 
-1. The implementation and documentation are committed and pushed as `groklab`.
-2. Pages reports `workflow` as its publishing source.
-3. The build and deploy jobs succeed for the intended final commit.
-4. The live root, first post, CSS, icons, and fonts return successfully.
-5. The live page visibly contains the exact site name and first-post text.
-6. The final deployment state and verified commit are recorded here and pushed.
+There was one launch-only race worth preserving: the push began both the former
+legacy Jekyll build and the new custom workflow before the Pages source switch
+completed. Although both succeeded, the later legacy deployment temporarily
+served `README.md`. Re-dispatching the custom workflow after Pages reported
+`build_type: workflow` replaced it with the correct Hugo artifact. Future pushes
+should trigger only `.github/workflows/pages.yml`.
+
+For every later release, repeat the same gate: verify the workflow head SHA,
+both jobs, Pages source, live content, assets, and missing-page response. The
+current Actions run is the authoritative record for documentation-only commits
+made after the production baseline above.
 
 ## Decisions intentionally left open
 
