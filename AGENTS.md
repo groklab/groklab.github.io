@@ -78,6 +78,12 @@
   is five page requests, not five distinct people, and exact counts remain
   private. All external-service details and credentials stay out of the
   repository.
+- The committed Hugo configuration keeps the visitor map disabled with an empty
+  origin. Production enablement is a strict two-key latch supplied only by the
+  `VISITOR_MAP_ENABLED` and `VISITOR_MAP_ORIGIN` GitHub Actions variables.
+  Disabled output must contain no Worker URL or visitor-map element; enabled
+  output uses only the fixed pixel, SVG-map, and text-summary routes and omits
+  collection from the 404 page.
 
 ## Local commands and quality gate
 
@@ -86,6 +92,7 @@ Use Hugo Extended 0.165.0 and Python 3:
 ```sh
 hugo server --buildDrafts --disableFastRender
 python3 scripts/check_content.py
+python3 scripts/check_visitor_map_integration.py
 node --test visitor-map/test/*.test.mjs
 python3 visitor-map/tools/check_sqlite.py
 hugo --cleanDestinationDir --gc --minify --panicOnWarning
@@ -94,7 +101,8 @@ python3 scripts/check_site.py public
 
 Before pushing implementation changes:
 
-- Run the content check, strict production build, and artifact check above.
+- Run the content check, visitor-map double-state integration check, strict
+  production build, and artifact check above.
 - Run `git diff --check` and review `git status`, the staged diff, and staged
   file sizes before every commit.
 - Preview the production artifact in a real browser at narrow iOS/Android-like
@@ -123,7 +131,13 @@ Before pushing implementation changes:
 - The anonymous map may use only Cloudflare Workers Free and D1 Free. Before
   provisioning or deployment, verify the signed-in Cloudflare identity and
   that the target account explicitly shows the free plan; never enable a paid
-  feature or upgrade. Keep the real account/database IDs and local auth only in
-  ignored files. The repository template must remain non-deployable by default.
+  feature or upgrade. Keep the real account/database IDs and local auth outside
+  the workspace in a temporary directory. The repository template must remain
+  non-deployable by default.
+- Wrangler deployment must explicitly disable autoconfiguration, experimental
+  provisioning, and experimental resource auto-creation. Create at most the
+  named D1 database after a read-only duplicate check, apply migrations with an
+  explicit `--remote`, and deploy with `--strict`; never accept an upgrade or
+  create an unreviewed resource.
 - Never commit secrets, credentials, private drafts, confidential data, or
   personal information that is not intended to be public.

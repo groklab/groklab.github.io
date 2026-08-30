@@ -106,6 +106,7 @@ hugo server --buildDrafts --disableFastRender
 
 ```sh
 python3 scripts/check_content.py
+python3 scripts/check_visitor_map_integration.py
 node --test visitor-map/test/*.test.mjs
 python3 visitor-map/tools/check_sqlite.py
 hugo --cleanDestinationDir --gc --minify --panicOnWarning
@@ -113,6 +114,7 @@ python3 scripts/check_site.py public
 ```
 
 第一条检查文章元数据、路径和图片，并用临时文章真实构建 MathML 与响应式图片；
+第二条用临时配置分别构建“地图关闭”和“地图启用”产物，并验证错误配置会失败；
 接下来两条检查匿名聚合地图的隐私契约、接口、SVG、保留期和真实 SQLite SQL
 语义；Hugo 命令生成生产站点，也会拒绝实际文章里的非法公式；最后一条检查 HTML、
 链接、静态资源、图片属性、RSS 和 sitemap。生成的 `public/` 已被 Git 忽略，不要
@@ -131,6 +133,19 @@ python3 -m http.server --directory public 8000
 首次访问会跟随操作系统的明暗偏好；页眉里的 `日` 或 `夜` 表示当前主题。手动切换
 后，选择只保存在这个站点自己的浏览器本地存储中，并在后续页面与刷新后继续使用。
 它不设置 cookie、不加载第三方资源，也不发送主题选择。
+
+## 匿名访问地图
+
+页脚地图统计页面请求，不统计或识别独立访客。Worker 只把 Cloudflare 临时提供的
+位置转换为 15° 网格，并在 D1 中保存 UTC 日期、网格编号和封顶计数；不保存 IP、
+稳定标识、精确位置、访问路径、referrer 或 user agent。过去 90 天内少于 5 次请求
+的网格不公开，公开数量也只显示区间。
+
+源码中的双开关默认关闭，因此普通本地构建不会联系 Cloudflare，也不会在产物中
+出现 Worker 地址。生产流水线只有在仓库变量 `VISITOR_MAP_ENABLED=true` 且
+`VISITOR_MAP_ORIGIN` 是经过验证的纯 `https://…workers.dev` origin 时才接入
+固定的 pixel、SVG 地图和文字版三条路由；清空这两个变量并重新部署即可恢复零
+Worker 请求。404 页面不采集，以免不存在页面和机器人噪声进入统计。
 
 ## 自动发布
 
@@ -151,9 +166,10 @@ git push origin main
 
 1. 下载并校验固定版本的 Hugo Extended；
 2. 检查文章、数学渲染和响应式图片；
-3. 检查匿名聚合地图源码及 SQLite 语义；
-4. 构建并检查完整静态站点；
-5. 将通过检查的产物部署到 GitHub Pages。
+3. 同时验证地图关闭/启用两种 Hugo 产物及错误配置；
+4. 检查匿名聚合地图源码及 SQLite 语义；
+5. 按仓库变量决定生产地图开关，构建并检查完整静态站点；
+6. 将通过检查的产物部署到 GitHub Pages。
 
 Pull request 只构建和检查，不部署。推送后打开
 [GitHub Actions](https://github.com/groklab/groklab.github.io/actions/workflows/pages.yml)，

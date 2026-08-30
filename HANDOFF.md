@@ -120,6 +120,7 @@ no production placeholder copy.
 hugo new content posts/<slug>/index.md
 hugo server --buildDrafts --disableFastRender
 python3 scripts/check_content.py
+python3 scripts/check_visitor_map_integration.py
 node --test visitor-map/test/*.test.mjs
 python3 visitor-map/tools/check_sqlite.py
 hugo --cleanDestinationDir --gc --minify --panicOnWarning
@@ -186,8 +187,9 @@ The selected Counterpoint visual system was verified on 2026-08-30:
 
 ## Anonymous visitor-map implementation state
 
-The deploy-locked source lives in `visitor-map/`; it is not yet connected to
-the Hugo footer and has not been provisioned on Cloudflare. Current properties:
+The deploy-locked source lives in `visitor-map/`. A strict default-off Hugo
+footer integration now exists locally, but production remains tracker-free and
+no Cloudflare resource has been provisioned yet. Current properties:
 
 - A dependency-free ESM Worker serves a strict no-JavaScript hit pixel, a
   server-rendered SVG, a Chinese text/table alternative, and static health
@@ -207,25 +209,38 @@ the Hugo footer and has not been provisioned on Cloudflare. Current properties:
   maintenance. Free-tier exhaustion is an availability failure, not permission
   to enable billing.
 - `wrangler.template.jsonc` has invalid placeholders, disables workers.dev,
-  previews, logs, and metrics, and is not auto-discovered. Real IDs belong only
-  in ignored `visitor-map/wrangler.jsonc`; `.env*`, `.dev.vars*`, and local
-  Wrangler state are ignored.
+  previews, logs, and metrics, and is not auto-discovered. During the approved
+  one-time deployment, real IDs and auth live only in a temporary `/tmp`
+  configuration; no deployable `wrangler.jsonc` remains in the workspace.
 - Thirty-one Node tests plus a standard-library SQLite execution check cover the
   privacy contract, request gates, renderer, source provenance, SQL
   `RETURNING`, caps, thresholding, and observable retention failures. Pages CI
   runs both checks without installing packages.
+- Hugo keeps a two-key `enabled: false` plus empty-origin latch in committed
+  configuration. The partial rejects malformed or half-enabled states. Its
+  enabled form emits one eager pixel, one lazy 720 by 360 SVG, and one text
+  alternative on ordinary pages, while the 404 remains collection-free.
+- The artifact checker proves both states, forbids all unexpected external
+  active resources, and accepts the pixel as the only empty-alt exception.
+  GitHub Actions can enable production only through the paired public
+  `VISITOR_MAP_ENABLED` and `VISITOR_MAP_ORIGIN` repository variables.
 
-Remaining release gates are deliberate: this machine currently has no verified
-Cloudflare CLI/dashboard deployment identity. No Wrangler, workerd, Miniflare,
-cloudflared, cached auth, or Cloudflare environment configuration was found;
-the in-app browser connection was unavailable, so a possible login in an
-ordinary browser could not be inspected. The owner must sign in to a free
-account and the target must visibly be Workers Free. Before provisioning, pin
-and run current Wrangler against local D1 to validate its config, migration,
-bundle, scheduled handler, and request metadata. Then create D1, apply the
-migration, deploy to `workers.dev`, verify all endpoints and quota settings,
-and only afterward place the real endpoint in Hugo. Do not add a placeholder or
-dead endpoint to the live site.
+The Cloudflare preflight is now verified. Wrangler 4.127.1 was pinned from npm
+and its registry SHA-512 integrity was checked. Device-flow OAuth is isolated
+under `/tmp`; no global Wrangler configuration or project package-manager file
+was created. The account-specific official Workers plans page visibly showed
+Workers Free at $0. A real Wrangler dry-run bundled the Worker at 28.44 KiB
+gzip, local D1 applied the migration, all routes and source gates ran through
+the local Workers runtime, seeded aggregate data appeared in both outputs, and
+the scheduled event pruned old rows. Every autoconfiguration and experimental
+auto-provision flag was explicitly disabled.
+
+The remaining release gates are remote and deliberate: read-list D1 to prevent
+duplicates, create exactly one named database without config mutation, write
+its ID only into the temporary config, apply the migration with explicit
+`--remote`, deploy exactly one Worker with `--strict`, and verify the real
+origin and settings. Only then set the paired GitHub variables, deploy Pages,
+run live browser/privacy/visual QA, and revoke the temporary OAuth grant.
 
 The deploy-locked source was committed and verified on 2026-08-30:
 
@@ -238,6 +253,11 @@ The deploy-locked source was committed and verified on 2026-08-30:
 - The live root and post returned 200, the custom missing route returned 404,
   and live HTML/CSS/theme-JS bytes matched the strict local artifact. The live
   root contained no `workers.dev`, pixel, map, or visitor-service endpoint.
+
+Local commit `a018a14` adds the default-off Hugo integration, strict artifact
+checker, negative integration suite, and variable-controlled Actions path. It
+has not yet been pushed or verified by Actions; production therefore remains
+at `2ca7019` until the next documented release.
 
 The aggregate query can read up to 25,920 retained rows in the theoretical
 maximum, and Cloudflare's Cache API is data-center-local. A distributed abuser
@@ -252,7 +272,7 @@ Do not infer or implement these without a later explicit user decision:
 | Decision | Current state |
 | --- | --- |
 | Custom domain | Not selected; no `CNAME` or DNS configuration |
-| Anonymous visitor map deployment | Deploy-locked Worker/D1 source and tests exist; free-account identity, real Wrangler/D1 validation, provisioning, endpoint verification, and Hugo integration remain pending |
+| Anonymous visitor map deployment | Workers Free identity and local Wrangler/D1 runtime are verified; default-off Hugo integration exists locally; remote D1/Worker provisioning, endpoint verification, Actions variables, and live Pages QA remain pending |
 | Comments, forms, search, or CMS | Not selected |
 | Project/content license | Not selected; third-party font licenses only |
 | Author bio, portrait, social links, or additional sections | Not supplied |
