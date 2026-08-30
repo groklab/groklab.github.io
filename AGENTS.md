@@ -3,57 +3,102 @@
 ## Start each session here
 
 - Read `HANDOFF.md` before planning or changing anything.
-- Inspect the repository, current branch, working tree, recent commits, and remotes. Treat current files and Git state as authoritative if these instructions or the handoff have become stale.
-- Summarize the current state and unresolved decisions before beginning implementation.
-- Preserve user changes and unrelated work. Never rewrite public history or force-push.
-- This machine may have more than one GitHub identity. Before any GitHub write, explicitly verify that the authenticated account is `groklab`; do not rely on the CLI default and never print credentials.
+- Inspect the repository, current branch, working tree, recent commits, remotes,
+  GitHub Pages settings, and recent Actions runs when relevant. Treat current
+  files and Git state as authoritative if this file or the handoff is stale.
+- Summarize the current state and genuinely unresolved decisions before work.
+- Preserve user changes and unrelated work. Never rewrite public history or
+  force-push.
+- This machine may have more than one GitHub identity. Before every GitHub
+  write, explicitly switch to and verify `groklab`; never rely on the CLI
+  default and never print credentials. Restore the previously active identity
+  afterward.
 
-## Project purpose and current phase
+## Project and fixed architecture
 
-- This repository is the future personal blog for the GitHub account `groklab`.
-- It is a GitHub Pages user site intended to publish at `https://groklab.github.io/`.
-- The bootstrap is deliberately implementation-neutral. No framework, static-site generator, theme, package manager, content model, deployment workflow, custom domain, analytics, comments, CMS, or license has been selected.
-- Do not infer a product or architecture decision from an otherwise empty repository.
+- This repository is the public GitHub Pages user site for `groklab`, published
+  at `https://groklab.github.io/`. Do not rename the repository or introduce a
+  project-site path prefix.
+- The visible site name and accessible brand name are exactly `真假维斯`.
+- The generator is Hugo Extended 0.165.0 with custom, repository-local
+  templates and CSS. There is no theme, JavaScript runtime, JS package manager,
+  package manifest, or lockfile.
+- GitHub Actions builds and deploys the static `public/` artifact. Generated
+  output remains ignored and must not be committed.
+- Root-relative asset paths are intentional because this is a user site at `/`.
+- `America/Chicago` is the site timezone. Published dates include an explicit
+  UTC offset and control both ordering and the visible timestamp.
 
-## Decision gates
+## Content conventions
 
-Before scaffolding a site or installing dependencies:
+- Posts are Markdown page bundles at `content/posts/<slug>/index.md`.
+- Slugs use lowercase ASCII words separated by hyphens. Once published, keep a
+  slug stable so its `/posts/<slug>/` permalink does not change.
+- Required front matter is `title`, `date`, `draft`, and `slug`. A production
+  post uses `draft: false`; CI rejects drafts and future publication dates.
+- Create a post with `hugo new content posts/<slug>/index.md`.
+- Put post images beside `index.md`. Every image requires meaningful alt text;
+  an optional Markdown image title becomes its caption. Hugo produces
+  responsive WebP variants for processable local images.
+- Use `\(...\)` for inline math and `\[...\]` or `$$...$$` for display math.
+  Hugo renders it to MathML at build time; invalid math fails the build.
+- The home page and `/posts/` show posts newest first. Do not silently change
+  the first post's title or exact supplied body.
 
-1. Establish the blog's audience, purpose, initial content, authoring workflow, desired visual direction, and required features.
-2. Present two or three suitable implementation options with a recommendation and concrete trade-offs in authoring experience, maintenance, performance, dependency load, and GitHub Pages deployment.
-3. Obtain the user's choice of implementation stack and package manager.
-4. Choose the Pages publishing method only after the stack is chosen.
-5. Record material decisions and their rationale in `HANDOFF.md`.
+## Visual and accessibility rules
 
-Do not add any of the following without an explicit user decision:
+- Keep the design restrained, Nordic, editorial, and typography-led. Retain the
+  thin true/false axis as the visual signature; avoid cards, gradients, heavy
+  shadows, pill-heavy UI, ornamental motion, and generic template styling.
+- Chinese text uses the self-hosted, unmodified LXGW WenKai GB font. Latin text
+  uses STIX Two Text and math uses STIX Two Math. The user explicitly chose
+  typography quality over the full Chinese font's mobile transfer size.
+- Add no font whose redistribution or web-embedding rights are unclear. Keep
+  font licenses, upstream versions, and checksums in
+  `THIRD_PARTY_NOTICES.md`; do not rename reserved font names.
+- Preserve semantic structure, keyboard access, visible focus, meaningful image
+  alternatives, sufficient contrast, reduced-motion behavior, safe-area
+  insets, and layouts that work without horizontal page scrolling at 320 px.
+- There is deliberately no client JavaScript. Do not add it when HTML, CSS,
+  MathML, or Hugo build-time processing can solve the problem.
 
-- A `LICENSE` file or license metadata.
-- A custom domain, `CNAME`, or DNS-dependent configuration.
-- Analytics, comments, forms, a CMS, cookies, trackers, or another third-party service.
-- A large theme, starter template, design system, or production dependency.
-- Generated deployment output committed to the source branch.
+## Local commands and quality gate
 
-## GitHub Pages constraints
+Use Hugo Extended 0.165.0 and Python 3:
 
-- The repository name `groklab.github.io` is intentional and must not be changed. It gives the account its one user site at the root URL; an arbitrary repository name would instead be a project site under `/<repository-name>`.
-- GitHub Pages serves static output. The deployable result must be HTML, CSS, JavaScript, and static assets; do not design around a persistent server-side runtime.
-- The published source or artifact must contain `index.html`, `index.md`, or `README.md` at its top level.
-- Branch publishing supports only the selected branch's repository root or `/docs` folder and uses Jekyll by default.
-- A custom build or a generator other than the branch/Jekyll path should normally deploy through GitHub Actions. Decide this after selecting the stack.
-- Treat the published site as public. Never commit or deploy secrets, credentials, private drafts, confidential data, or personal information not intended for publication.
-- Build links and asset paths for the user-site root `/`, not a project-site prefix.
-- Do not enable or reconfigure Pages until a publishing method and valid entry artifact exist.
-- Do not claim deployment success from a push alone. Verify the deployment run, the live URL, and that the live content corresponds to the intended commit.
+```sh
+hugo server --buildDrafts --disableFastRender
+python3 scripts/check_content.py
+hugo --cleanDestinationDir --gc --minify --panicOnWarning
+python3 scripts/check_site.py public
+```
 
-## Implementation and quality bar
+Before pushing implementation changes:
 
-- Prefer the smallest maintainable solution that satisfies the agreed product brief.
-- Once a stack is chosen, document exact install, development, check, build, and preview commands in `README.md`, and update this file with any durable repository-specific rules.
-- Commit the appropriate lockfile and keep dependency additions deliberate.
-- Before pushing implementation changes, run every available formatter, linter, test, and production build. If a category does not exist, state that clearly.
-- Inspect the production artifact and preview it in a real browser at narrow mobile and desktop widths.
-- Check semantic structure, keyboard use, visible focus, accessible names, image alternatives, color contrast, responsive layout, internal links, asset loading, and missing-page behavior.
-- Use the available frontend-design skill for the initial visual system or any substantial interface redesign.
-- Keep source content separate from generated output unless the chosen deployment architecture explicitly requires otherwise.
-- Keep commits focused and review `git status` and the staged diff before each commit or push.
-- Update `HANDOFF.md` when a decision, deployment state, command, or next step materially changes.
+- Run the content check, strict production build, and artifact check above.
+- Run `git diff --check` and review `git status`, the staged diff, and staged
+  file sizes before every commit.
+- Preview the production artifact in a real browser at narrow iOS/Android-like
+  widths and desktop width. Check the homepage, archive, post, 404, keyboard
+  focus, semantics, contrast, internal links, assets, images, MathML, RSS, and
+  missing-page behavior.
+- Python validation scripts use only the standard library. No separate project
+  formatter, linter, or unit-test framework exists; state that accurately
+  rather than implying those categories ran.
+- For deployment, verify the Actions run, its source commit, the Pages
+  deployment, and the live content. Never infer success from a push alone.
+
+## Change boundaries
+
+- Prefer the smallest maintainable change that satisfies the agreed product
+  brief. Keep source content separate from generated output and commits focused.
+- Keep this file and `HANDOFF.md` evergreen when architecture, commands,
+  deployment state, or durable content rules change.
+- Do not add a project `LICENSE` or license metadata without an explicit user
+  decision. Third-party notices and bundled upstream font license files are
+  required and do not license the site's own code or content.
+- Do not add a custom domain, `CNAME`, analytics, comments, forms, CMS, cookies,
+  trackers, search service, or another third-party service without explicit
+  approval.
+- Never commit secrets, credentials, private drafts, confidential data, or
+  personal information that is not intended to be public.
