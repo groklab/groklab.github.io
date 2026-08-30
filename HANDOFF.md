@@ -66,6 +66,33 @@ Decisions made on 2026-08-30:
 - 得到今楷 is not used because it is exclusive to 得到. 仓耳今楷 is not used
   because clear redistribution and web-embedding permission was not established.
 
+## Approved work in progress
+
+The user approved the following release brief on 2026-08-30. Treat these as
+requirements, while current files and the live site remain authoritative about
+what has actually shipped:
+
+- Split the visible secondary tagline so `real` sits beneath `真` and `jarvis`
+  sits beneath `假维斯`; increase it slightly from the current size. Preserve
+  the accessible home-link name `真假维斯`.
+- Add a persistent light/dark theme toggle in the position selected by visual
+  and accessibility review. It may use a tiny dependency-free client script;
+  no JS package manager or application runtime is authorized.
+- Evolve the visual system into a restrained Mondrian/De Stijl homage using
+  asymmetrical grid logic and sparing color fields. It must remain quiet,
+  editorial, responsive, and recognizable as this site rather than reproduce a
+  specific painting.
+- Produce multiple visual proposals, anonymize them, and use independent blind
+  review to select the implementation. Multimodal browser inspection is part
+  of both selection and final QA.
+- Implement an anonymous aggregate world map with a Cloudflare Worker, D1, a
+  no-JavaScript hit pixel, and a server-rendered SVG. Store only coarse
+  geographic counts; do not store raw IPs or stable hashes. Public locations
+  require a minimum-count threshold and must never appear as individual visitor
+  pins or precise locations.
+- Keep `AGENTS.md` and this handoff evergreen, make focused commits, and verify
+  every pushed Pages release against its exact source commit and live output.
+
 ## Launch content and features
 
 - The first post is `content/posts/hello-world/index.md`.
@@ -142,7 +169,7 @@ Do not infer or implement these without a later explicit user decision:
 | Decision | Current state |
 | --- | --- |
 | Custom domain | Not selected; no `CNAME` or DNS configuration |
-| Analytics or visitor map | The user asked about footer statistics and a world map; no service, privacy model, or implementation has been selected |
+| Anonymous visitor map deployment | Cloudflare Worker + D1 + thresholded SVG is approved; service provisioning and production endpoints are not yet verified |
 | Comments, forms, search, or CMS | Not selected |
 | Project/content license | Not selected; third-party font licenses only |
 | Author bio, portrait, social links, or additional sections | Not supplied |

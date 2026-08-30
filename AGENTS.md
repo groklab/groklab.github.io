@@ -20,8 +20,9 @@
   at `https://groklab.github.io/`. Do not rename the repository or introduce a
   project-site path prefix.
 - The visible site name and accessible brand name are exactly `真假维斯`. Its
-  visible secondary tagline is exactly `real jarvis`; keep the accessible link
-  name as `真假维斯`.
+  secondary tagline uses the exact words `real jarvis`, visually split so
+  `real` sits below `真` and `jarvis` sits below `假维斯`; keep the accessible
+  home-link name as `真假维斯`.
 - The generator is Hugo Extended 0.165.0 with custom, repository-local
   templates and CSS. There is no theme, JavaScript runtime, JS package manager,
   package manifest, or lockfile.
@@ -52,6 +53,10 @@
 - Keep the design restrained, Nordic, editorial, and typography-led. Retain the
   thin true/false axis as the visual signature; avoid cards, gradients, heavy
   shadows, pill-heavy UI, ornamental motion, and generic template styling.
+- The approved color direction is a restrained Mondrian/De Stijl homage:
+  asymmetrical grid logic and a few disciplined primary-color fields, not a
+  literal painting reproduction or a decorative rainbow. Preserve generous
+  neutral space and spend visual emphasis in one place at a time.
 - Chinese text uses the self-hosted, unmodified LXGW WenKai GB font. Latin text
   uses Newsreader and math uses STIX Two Math. The user explicitly chose
   typography quality over the full Chinese font's mobile transfer size.
@@ -61,8 +66,15 @@
 - Preserve semantic structure, keyboard access, visible focus, meaningful image
   alternatives, sufficient contrast, reduced-motion behavior, safe-area
   insets, and layouts that work without horizontal page scrolling at 320 px.
-- There is deliberately no client JavaScript. Do not add it when HTML, CSS,
-  MathML, or Hugo build-time processing can solve the problem.
+- Client JavaScript is limited to the persistent light/dark theme control. Keep
+  it dependency-free, tiny, accessible, and free of a package manager or app
+  runtime; do not use JavaScript when HTML, CSS, MathML, SVG, or Hugo build-time
+  processing can solve the problem.
+- The visitor map is approved only as anonymous aggregate geography. Collection
+  must use a no-JavaScript image request; never store or expose raw IPs, stable
+  visitor hashes, individual timestamps, or individual visitor pins. Public
+  dots need a minimum-count threshold, and all external-service details and
+  credentials must stay out of the repository.
 
 ## Local commands and quality gate
 
