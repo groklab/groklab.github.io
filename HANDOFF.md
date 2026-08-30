@@ -121,6 +121,20 @@ both jobs, Pages source, live content, assets, and missing-page response. The
 current Actions run is the authoritative record for documentation-only commits
 made after the production baseline above.
 
+The typography and secondary-wordmark update was verified on 2026-08-30:
+
+- Commit `08fd4b073aadb9bcdb49b2f10c9fc22b7c47deca` added the visible
+  `real jarvis` tagline and replaced STIX Two Text with Newsreader 1.003.
+- Workflow run `33319884594` built and deployed that exact commit; both jobs
+  completed successfully while Pages remained in workflow mode with HTTPS
+  enforced.
+- The live root returned HTTP 200 and the custom missing route returned HTTP
+  404. The live root and fingerprinted CSS were byte-for-byte identical to the
+  local strict build; both live Newsreader files matched their recorded hashes.
+- A live 390 px browser loaded Newsreader and LXGW WenKai GB, showed the exact
+  tagline, had no horizontal overflow, loaded no client scripts, and emitted no
+  console warnings or errors.
+
 ## Decisions intentionally left open
 
 Do not infer or implement these without a later explicit user decision:
