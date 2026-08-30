@@ -21,7 +21,8 @@ Verify this state at the start of each session rather than trusting it blindly:
 - Default/source branch: `main`
 - Visibility: public
 - Generator: Hugo Extended 0.165.0
-- Local dependencies: Hugo and Python 3 only; no JS package manager
+- Local tools: Hugo, Python 3, and Node.js 20+; no JS package manager or
+  installed JavaScript package dependency
 - Source content: Markdown page bundles under `content/posts/`
 - Production output: generated `public/`, ignored by Git
 - Deployment: custom GitHub Actions workflow in `.github/workflows/pages.yml`
@@ -119,6 +120,8 @@ no production placeholder copy.
 hugo new content posts/<slug>/index.md
 hugo server --buildDrafts --disableFastRender
 python3 scripts/check_content.py
+node --test visitor-map/test/*.test.mjs
+python3 visitor-map/tools/check_sqlite.py
 hugo --cleanDestinationDir --gc --minify --panicOnWarning
 python3 scripts/check_site.py public
 ```
@@ -170,6 +173,63 @@ The typography and secondary-wordmark update was verified on 2026-08-30:
   tagline, had no horizontal overflow, loaded no client scripts, and emitted no
   console warnings or errors.
 
+The selected Counterpoint visual system was verified on 2026-08-30:
+
+- Commit `251afae26d102d7276402539badd7a8b05d082cb` implemented the blind-review
+  winner, split the tagline across the axis, and added the persistent theme
+  control.
+- Workflow run `33323043105` built and deployed that exact commit successfully.
+- The live root, post, CSS, and theme script were byte-for-byte identical to a
+  strict local build. Browser checks at 320 px in both themes found exact datum
+  alignment, no overflow, correct theme persistence, loaded fonts, no external
+  requests, and no console errors.
+
+## Anonymous visitor-map implementation state
+
+The deploy-locked source lives in `visitor-map/`; it is not yet connected to
+the Hugo footer and has not been provisioned on Cloudflare. Current properties:
+
+- A dependency-free ESM Worker serves a strict no-JavaScript hit pixel, a
+  server-rendered SVG, a Chinese text/table alternative, and static health
+  response. There is no package manifest or client analytics script.
+- D1 stores only UTC day, integer 15-degree latitude/longitude bands, and
+  bounded aggregate counters. It has no event table, raw address, stable
+  identifier, precise coordinate, path, referrer, user agent, or individual
+  timestamp. Missing geography and write failures fail closed for counting.
+- Public output is a rolling 90-day view. Cells below five page requests are
+  omitted; visible counts are only `5-9`, `10-24`, `25-99`, or `100+`. This is
+  request suppression, not a claim of five distinct visitors or k-anonymity.
+- The map uses near-full 15-degree blue squares, never individual pins. Its
+  transparent Natural Earth 1:110m coastline is generated locally from one
+  SHA-256-pinned public-domain source; no map CDN is contacted at runtime.
+- At most 20,000 eligible requests are accepted daily and each cell/day
+  saturates at 2,000, bounding normal D1 writes near 40,000 rows/day before
+  maintenance. Free-tier exhaustion is an availability failure, not permission
+  to enable billing.
+- `wrangler.template.jsonc` has invalid placeholders, disables workers.dev,
+  previews, logs, and metrics, and is not auto-discovered. Real IDs belong only
+  in ignored `visitor-map/wrangler.jsonc`; `.env*`, `.dev.vars*`, and local
+  Wrangler state are ignored.
+- Thirty Node tests plus a standard-library SQLite execution check cover the
+  privacy contract, request gates, renderer, source provenance, SQL
+  `RETURNING`, caps, thresholding, and observable retention failures. Pages CI
+  runs both checks without installing packages.
+
+Remaining release gates are deliberate: this machine currently has no verified
+Cloudflare CLI/dashboard deployment identity; the owner must sign in to a free
+account and the target must visibly be Workers Free. Before provisioning, pin
+and run current Wrangler against local D1 to validate its config, migration,
+bundle, scheduled handler, and request metadata. Then create D1, apply the
+migration, deploy to `workers.dev`, verify all endpoints and quota settings,
+and only afterward place the real endpoint in Hugo. Do not add a placeholder or
+dead endpoint to the live site.
+
+The aggregate query can read up to 25,920 retained rows in the theoretical
+maximum, and Cloudflare's Cache API is data-center-local. A distributed abuser
+could therefore exhaust a free daily read/request quota and make the map
+temporarily unavailable. That must fail closed and remain a documented
+availability trade-off; it must never trigger a paid upgrade.
+
 ## Decisions intentionally left open
 
 Do not infer or implement these without a later explicit user decision:
@@ -177,7 +237,7 @@ Do not infer or implement these without a later explicit user decision:
 | Decision | Current state |
 | --- | --- |
 | Custom domain | Not selected; no `CNAME` or DNS configuration |
-| Anonymous visitor map deployment | Cloudflare Worker + D1 + thresholded SVG is approved; service provisioning and production endpoints are not yet verified |
+| Anonymous visitor map deployment | Deploy-locked Worker/D1 source and tests exist; free-account identity, real Wrangler/D1 validation, provisioning, endpoint verification, and Hugo integration remain pending |
 | Comments, forms, search, or CMS | Not selected |
 | Project/content license | Not selected; third-party font licenses only |
 | Author bio, portrait, social links, or additional sections | Not supplied |

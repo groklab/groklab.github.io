@@ -74,8 +74,10 @@
 - The visitor map is approved only as anonymous aggregate geography. Collection
   must use a no-JavaScript image request; never store or expose raw IPs, stable
   visitor hashes, individual timestamps, or individual visitor pins. Public
-  dots need a minimum-count threshold, and all external-service details and
-  credentials must stay out of the repository.
+  output uses thresholded 15-degree squares, never dots or pins; the threshold
+  is five page requests, not five distinct people, and exact counts remain
+  private. All external-service details and credentials stay out of the
+  repository.
 
 ## Local commands and quality gate
 
@@ -84,6 +86,8 @@ Use Hugo Extended 0.165.0 and Python 3:
 ```sh
 hugo server --buildDrafts --disableFastRender
 python3 scripts/check_content.py
+node --test visitor-map/test/*.test.mjs
+python3 visitor-map/tools/check_sqlite.py
 hugo --cleanDestinationDir --gc --minify --panicOnWarning
 python3 scripts/check_site.py public
 ```
@@ -97,9 +101,10 @@ Before pushing implementation changes:
   widths and desktop width. Check the homepage, archive, post, 404, keyboard
   focus, semantics, contrast, internal links, assets, images, MathML, RSS, and
   missing-page behavior.
-- Python validation scripts use only the standard library. No separate project
-  formatter, linter, or unit-test framework exists; state that accurately
-  rather than implying those categories ran.
+- Python validation scripts use only the standard library. Visitor-map unit
+  tests use Node's built-in test runner and install no packages. No separate
+  project formatter or linter exists; state that accurately rather than
+  implying those categories ran.
 - For deployment, verify the Actions run, its source commit, the Pages
   deployment, and the live content. Never infer success from a push alone.
 
@@ -115,5 +120,10 @@ Before pushing implementation changes:
 - Do not add a custom domain, `CNAME`, analytics, comments, forms, CMS, cookies,
   trackers, search service, or another third-party service without explicit
   approval.
+- The anonymous map may use only Cloudflare Workers Free and D1 Free. Before
+  provisioning or deployment, verify the signed-in Cloudflare identity and
+  that the target account explicitly shows the free plan; never enable a paid
+  feature or upgrade. Keep the real account/database IDs and local auth only in
+  ignored files. The repository template must remain non-deployable by default.
 - Never commit secrets, credentials, private drafts, confidential data, or
   personal information that is not intended to be public.

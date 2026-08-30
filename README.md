@@ -11,15 +11,17 @@ Newsreader，数学使用 STIX Two Math。字体来源与许可见
 
 ## 准备环境
 
-安装 [Hugo Extended 0.165.0](https://github.com/gohugoio/hugo/releases/tag/v0.165.0)
-和 Python 3，然后确认：
+安装 [Hugo Extended 0.165.0](https://github.com/gohugoio/hugo/releases/tag/v0.165.0)、
+Python 3 和 Node.js 20 或更高版本，然后确认：
 
 ```sh
 hugo version
 python3 --version
+node --version
 ```
 
-Hugo 输出应包含 `v0.165.0` 和 `extended`。项目本身无需安装依赖。
+Hugo 输出应包含 `v0.165.0` 和 `extended`。Node 只运行 Worker 的内置测试；项目
+没有 `package.json`，也无需运行 `npm install` 或安装任何包。
 
 ## 写一篇新文章
 
@@ -104,13 +106,17 @@ hugo server --buildDrafts --disableFastRender
 
 ```sh
 python3 scripts/check_content.py
+node --test visitor-map/test/*.test.mjs
+python3 visitor-map/tools/check_sqlite.py
 hugo --cleanDestinationDir --gc --minify --panicOnWarning
 python3 scripts/check_site.py public
 ```
 
 第一条检查文章元数据、路径和图片，并用临时文章真实构建 MathML 与响应式图片；
-第二条生成生产站点，也会拒绝实际文章里的非法公式；第三条检查 HTML、链接、
-静态资源、图片属性、RSS 和 sitemap。生成的 `public/` 已被 Git 忽略，不要提交。
+接下来两条检查匿名聚合地图的隐私契约、接口、SVG、保留期和真实 SQLite SQL
+语义；Hugo 命令生成生产站点，也会拒绝实际文章里的非法公式；最后一条检查 HTML、
+链接、静态资源、图片属性、RSS 和 sitemap。生成的 `public/` 已被 Git 忽略，不要
+提交。
 
 如需查看生产产物：
 
@@ -145,8 +151,9 @@ git push origin main
 
 1. 下载并校验固定版本的 Hugo Extended；
 2. 检查文章、数学渲染和响应式图片；
-3. 构建并检查完整静态站点；
-4. 将通过检查的产物部署到 GitHub Pages。
+3. 检查匿名聚合地图源码及 SQLite 语义；
+4. 构建并检查完整静态站点；
+5. 将通过检查的产物部署到 GitHub Pages。
 
 Pull request 只构建和检查，不部署。推送后打开
 [GitHub Actions](https://github.com/groklab/groklab.github.io/actions/workflows/pages.yml)，

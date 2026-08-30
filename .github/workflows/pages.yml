@@ -73,6 +73,18 @@ jobs:
       - name: Validate content, math, and responsive images
         run: python3 scripts/check_content.py
 
+      - name: Validate anonymous visitor-map source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node_version="$(node --version)"
+          printf '%s\n' "${node_version}"
+          node_major="${node_version#v}"
+          node_major="${node_major%%.*}"
+          [[ "${node_major}" -ge 20 ]]
+          node --test visitor-map/test/*.test.mjs
+          python3 visitor-map/tools/check_sqlite.py
+
       - name: Build production site
         run: >-
           hugo
