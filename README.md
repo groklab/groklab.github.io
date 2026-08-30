@@ -3,9 +3,10 @@
 `真假维斯` 是一个由 Hugo 生成、通过 GitHub Actions 自动发布到 GitHub
 Pages 的个人博客：<https://groklab.github.io/>。
 
-项目没有 JavaScript、`npm` 或其他 JS 包管理器。文章使用 Markdown；数学公式在
-构建时转成 MathML，图片在构建时生成响应式 WebP 版本。中文正文使用自托管的
-霞鹜文楷 GB，拉丁文字使用 Newsreader，数学使用 STIX Two Math。字体来源与许可见
+项目没有 `npm`、其他 JS 包管理器或第三方前端依赖。唯一的浏览器脚本是本地、
+无依赖的明暗主题开关；文章使用 Markdown，数学公式在构建时转成 MathML，图片在
+构建时生成响应式 WebP 版本。中文正文使用自托管的霞鹜文楷 GB，拉丁文字使用
+Newsreader，数学使用 STIX Two Math。字体来源与许可见
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 
 ## 准备环境
@@ -118,6 +119,12 @@ python3 -m http.server --directory public 8000
 ```
 
 然后打开 <http://localhost:8000/>。
+
+## 明暗主题
+
+首次访问会跟随操作系统的明暗偏好；页眉里的 `日` 或 `夜` 表示当前主题。手动切换
+后，选择只保存在这个站点自己的浏览器本地存储中，并在后续页面与刷新后继续使用。
+它不设置 cookie、不加载第三方资源，也不发送主题选择。
 
 ## 自动发布
 

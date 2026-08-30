@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import html.parser
 import pathlib
 import posixpath
@@ -50,6 +52,8 @@ CSS_URL_RE = re.compile(
     r"url\(\s*(?:\"(?P<double>[^\"]*)\"|'(?P<single>[^']*)'|(?P<plain>[^)'\"]+))\s*\)",
     re.IGNORECASE,
 )
+THEME_SCRIPT_RE = re.compile(r"/js/theme\.min\.(?P<digest>[0-9a-f]{96})\.js")
+SRI_SHA384_RE = re.compile(r"sha384-[A-Za-z0-9+/]{64}")
 
 
 @dataclass
@@ -69,7 +73,9 @@ class HTMLDocument:
     brand_tagline_text_parts: list[str] = field(default_factory=list)
     h1_parts: list[str] = field(default_factory=list)
     post_content_parts: list[str] = field(default_factory=list)
-    script_count: int = 0
+    scripts: list[dict[str, str | None]] = field(default_factory=list)
+    theme_toggles: list[dict[str, str | None]] = field(default_factory=list)
+    head_assets: list[tuple[str, str]] = field(default_factory=list)
     post_entry_count: int = 0
 
     @property
@@ -119,7 +125,11 @@ class DocumentParser(html.parser.HTMLParser):
         if tag == "h1":
             self._h1_depth += 1
         if tag == "script":
-            self.document.script_count += 1
+            self.document.scripts.append(attributes)
+            if attributes.get("src"):
+                self.document.head_assets.append(("script", attributes["src"] or ""))
+        if tag == "button" and "theme-toggle" in classes:
+            self.document.theme_toggles.append(attributes)
         if tag == "li" and "post-entry" in classes:
             self.document.post_entry_count += 1
         if tag in {"head", "script", "style", "template", "noscript"}:
@@ -134,6 +144,8 @@ class DocumentParser(html.parser.HTMLParser):
         if tag == "link":
             rel = {part.casefold() for part in (attributes.get("rel") or "").split()}
             href = attributes.get("href")
+            if "stylesheet" in rel and href:
+                self.document.head_assets.append(("stylesheet", href))
             if "canonical" in rel and href:
                 self.document.canonicals.append(href)
             if href:
@@ -340,15 +352,55 @@ def validate_html_documents(
                 f"{context}: visible and accessible brand must both be exactly "
                 f"{EXPECTED_SITE_NAME}"
             )
-        brand_tagline = "".join(document.brand_tagline_text_parts).strip()
+        brand_tagline = " ".join(" ".join(document.brand_tagline_text_parts).split())
         if document.brand_tagline_count != 1 or brand_tagline != EXPECTED_TAGLINE:
             errors.append(
                 f"{context}: expected one visible brand tagline named {EXPECTED_TAGLINE}"
             )
-        if document.script_count:
-            errors.append(
-                f"{context}: client-side <script> elements are not allowed in this site"
-            )
+        if len(document.scripts) != 1:
+            errors.append(f"{context}: expected exactly one local theme script")
+        else:
+            script = document.scripts[0]
+            source = script.get("src") or ""
+            integrity = script.get("integrity") or ""
+            source_match = THEME_SCRIPT_RE.fullmatch(source)
+            if source_match is None:
+                errors.append(
+                    f"{context}: theme script must be a fingerprinted local asset, found {source!r}"
+                )
+            if not SRI_SHA384_RE.fullmatch(integrity):
+                errors.append(f"{context}: theme script needs a valid sha384 integrity value")
+            if script.get("crossorigin") != "anonymous":
+                errors.append(f"{context}: theme script must use crossorigin=anonymous")
+            if "async" in script or "defer" in script:
+                errors.append(f"{context}: theme script must run before the stylesheet")
+            asset = resolve_public_path(public, source)
+            if asset is not None and source_match is not None:
+                digest = hashlib.sha384(asset.read_bytes()).digest()
+                expected_integrity = f"sha384-{base64.b64encode(digest).decode('ascii')}"
+                if integrity != expected_integrity:
+                    errors.append(f"{context}: theme script SRI does not match its bytes")
+                if source_match.group("digest") != digest.hex():
+                    errors.append(f"{context}: theme script filename digest does not match its bytes")
+
+            asset_types = [asset_type for asset_type, _ in document.head_assets]
+            if "script" not in asset_types:
+                errors.append(f"{context}: theme script must have a source URL")
+            elif "stylesheet" not in asset_types:
+                errors.append(f"{context}: missing stylesheet after the theme script")
+            elif asset_types.index("script") > asset_types.index("stylesheet"):
+                errors.append(f"{context}: theme script must precede the stylesheet")
+
+        if len(document.theme_toggles) != 1:
+            errors.append(f"{context}: expected exactly one progressive theme toggle")
+        else:
+            toggle = document.theme_toggles[0]
+            if toggle.get("type") != "button" or "hidden" not in toggle:
+                errors.append(
+                    f"{context}: theme toggle must be type=button and hidden until initialized"
+                )
+            if "data-theme-toggle" not in toggle:
+                errors.append(f"{context}: theme toggle is missing data-theme-toggle")
 
         for number, image in enumerate(document.images, start=1):
             errors.extend(validate_image_dimensions(image, f"{context} image {number}"))

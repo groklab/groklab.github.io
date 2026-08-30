@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="light dark">
     {{- $pageTitle := .Site.Title -}}
     {{- if not .IsHome -}}
       {{- $pageTitle = printf "%s · %s" .Title .Site.Title -}}
@@ -37,6 +37,8 @@
     {{- end }}
     <link rel="icon" href="{{ "favicon.svg" | relURL }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ "apple-touch-icon.png" | relURL }}">
+    {{- $theme := resources.Get "js/theme.js" | minify | fingerprint "sha384" }}
+    <script src="{{ $theme.RelPermalink }}" integrity="{{ $theme.Data.Integrity }}" crossorigin="anonymous"></script>
     {{- $styles := resources.Get "css/main.css" | minify | fingerprint "sha384" }}
     <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}" crossorigin="anonymous">
   </head>

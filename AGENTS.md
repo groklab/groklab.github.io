@@ -24,7 +24,8 @@
   `real` sits below `真` and `jarvis` sits below `假维斯`; keep the accessible
   home-link name as `真假维斯`.
 - The generator is Hugo Extended 0.165.0 with custom, repository-local
-  templates and CSS. There is no theme, JavaScript runtime, JS package manager,
+  templates, CSS, and one small dependency-free theme script. There is no
+  third-party theme, application JavaScript runtime, JS package manager,
   package manifest, or lockfile.
 - GitHub Actions builds and deploys the static `public/` artifact. Generated
   output remains ignored and must not be committed.

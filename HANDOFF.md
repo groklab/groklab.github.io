@@ -40,8 +40,10 @@ Decisions made on 2026-08-30:
   decoration, while the accessible home-link name remains `真假维斯`.
 - Hugo was selected over Astro and Jekyll for a small static binary toolchain,
   native Markdown/page-bundle image processing, and build-time MathML.
-- There is no JavaScript package manager, client-side JavaScript, external font
-  CDN, theme, starter, or production package dependency.
+- There is no JavaScript package manager, external font CDN, third-party theme,
+  starter, or production package dependency. The sole client script is the
+  repository-local, dependency-free light/dark control; Hugo minifies and
+  fingerprints it, and every page loads it with SHA-384 SRI before the CSS.
 - GitHub Actions is the publishing method because a custom Hugo build is
   required. Pull requests validate without deploying; pushes to `main` deploy
   only after all checks pass.
@@ -52,9 +54,19 @@ Decisions made on 2026-08-30:
   and optional captions.
 - LaTeX-style delimiters are transformed to MathML during the Hugo build. The
   public site needs no math JavaScript or CDN.
-- The visual system is custom Nordic minimalism: cold paper tones, dark ink,
-  restrained fjord green, generous space, and a one-pixel true/false axis. It
-  deliberately avoids cards, gradients, shadows, and decorative motion.
+- The visual system is the custom `Counterpoint Axis`: mineral paper, dark ink,
+  one structural blue datum, one red latest-post joint, and one ochre footer
+  field. It borrows De Stijl's asymmetrical balance and functional color while
+  preserving the site's quiet Nordic/editorial character; it deliberately
+  avoids literal painting grids, cards, gradients, shadows, and decorative
+  motion.
+- The wordmark's `real jarvis` line is split across the same datum, with `real`
+  beneath `真` and `jarvis` beneath `假维斯`. The accessible home-link name
+  remains exactly `真假维斯`.
+- The theme control follows the system preference until a visitor chooses light
+  or dark, then persists that choice under `groklab.theme.v1` in localStorage.
+  It sets no cookie, makes no network request, and is hidden when JavaScript is
+  unavailable while CSS continues to follow the system theme.
 - The Chinese font is the unmodified LXGW WenKai GB 1.522 TTF under SIL OFL
   1.1. The user explicitly prioritizes its elegant contemporary-kai appearance
   over its roughly 25 MB mobile transfer cost.
@@ -72,19 +84,6 @@ The user approved the following release brief on 2026-08-30. Treat these as
 requirements, while current files and the live site remain authoritative about
 what has actually shipped:
 
-- Split the visible secondary tagline so `real` sits beneath `真` and `jarvis`
-  sits beneath `假维斯`; increase it slightly from the current size. Preserve
-  the accessible home-link name `真假维斯`.
-- Add a persistent light/dark theme toggle in the position selected by visual
-  and accessibility review. It may use a tiny dependency-free client script;
-  no JS package manager or application runtime is authorized.
-- Evolve the visual system into a restrained Mondrian/De Stijl homage using
-  asymmetrical grid logic and sparing color fields. It must remain quiet,
-  editorial, responsive, and recognizable as this site rather than reproduce a
-  specific painting.
-- Produce multiple visual proposals, anonymize them, and use independent blind
-  review to select the implementation. Multimodal browser inspection is part
-  of both selection and final QA.
 - Implement an anonymous aggregate world map with a Cloudflare Worker, D1, a
   no-JavaScript hit pixel, and a server-rendered SVG. Store only coarse
   geographic counts; do not store raw IPs or stable hashes. Public locations
@@ -92,6 +91,15 @@ what has actually shipped:
   pins or precise locations.
 - Keep `AGENTS.md` and this handoff evergreen, make focused commits, and verify
   every pushed Pages release against its exact source commit and live output.
+
+The visual selection is complete. Three anonymized proposals were rendered at
+desktop/mobile widths in light/dark modes and scored independently by GREEN,
+CYAN, and BLUE. `Counterpoint Axis` (blind code `XQ7`) received two of three
+first-place votes and narrowly led the aggregate score, 276 to 274. Its source
+implementation incorporates the judges' common fixes: one-pixel datum
+alignment, a 44 px text-labelled theme control, 12 px mobile metadata on the
+content side of the axis, larger tagline text, higher dark-mode contrast, and
+no production placeholder copy.
 
 ## Launch content and features
 
