@@ -22,6 +22,8 @@ env:
   HUGO_SHA256: f43494894cdf4a8630a201d5c828051c77f523cc66bb3938b30806835470ac20
   HUGO_ENVIRONMENT: production
   TZ: America/Chicago
+  VISITOR_MAP_ENABLED: ${{ vars.VISITOR_MAP_ENABLED }}
+  VISITOR_MAP_ORIGIN: ${{ vars.VISITOR_MAP_ORIGIN }}
 
 jobs:
   build:
@@ -70,8 +72,39 @@ jobs:
           [[ "${version}" == "hugo v${HUGO_VERSION}-"* ]]
           [[ "${version}" == *"+extended "* ]]
 
+      - name: Prepare visitor-map build mode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          enabled="${VISITOR_MAP_ENABLED:-false}"
+          origin="${VISITOR_MAP_ORIGIN:-}"
+          overlay="${RUNNER_TEMP}/visitor-map-production.json"
+          pattern='^https://[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.workers\.dev$'
+
+          case "${enabled}" in
+            true)
+              [[ "${origin}" =~ ${pattern} ]]
+              jq --null-input --arg origin "${origin}" '{params:{visitor_map:{enabled:true,origin:$origin}}}' > "${overlay}"
+              printf 'VISITOR_MAP_HUGO_CONFIG=,%s\n' "${overlay}" >> "${GITHUB_ENV}"
+              printf '%s\n' 'VISITOR_MAP_CHECK_MODE=enabled' >> "${GITHUB_ENV}"
+              ;;
+            false|'')
+              [[ -z "${origin}" ]]
+              printf '%s\n' 'VISITOR_MAP_HUGO_CONFIG=' >> "${GITHUB_ENV}"
+              printf '%s\n' 'VISITOR_MAP_CHECK_MODE=off' >> "${GITHUB_ENV}"
+              ;;
+            *)
+              printf '%s\n' 'VISITOR_MAP_ENABLED must be exactly true or false.' >&2
+              exit 1
+              ;;
+          esac
+
       - name: Validate content, math, and responsive images
         run: python3 scripts/check_content.py
+
+      - name: Validate visitor-map site integration
+        run: python3 scripts/check_visitor_map_integration.py --hugo "$(command -v hugo)"
 
       - name: Validate anonymous visitor-map source
         shell: bash
@@ -88,6 +121,7 @@ jobs:
       - name: Build production site
         run: >-
           hugo
+          --config "hugo.yaml${VISITOR_MAP_HUGO_CONFIG}"
           --baseURL https://groklab.github.io/
           --cacheDir "${RUNNER_TEMP}/hugo-cache"
           --cleanDestinationDir
@@ -97,7 +131,14 @@ jobs:
           --panicOnWarning
 
       - name: Validate production artifact
-        run: python3 scripts/check_site.py public
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${VISITOR_MAP_CHECK_MODE}" == "enabled" ]]; then
+            python3 scripts/check_site.py --visitor-map-origin "${VISITOR_MAP_ORIGIN}" public
+          else
+            python3 scripts/check_site.py public
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

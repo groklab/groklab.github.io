@@ -52,13 +52,47 @@ CSS_URL_RE = re.compile(
     r"url\(\s*(?:\"(?P<double>[^\"]*)\"|'(?P<single>[^']*)'|(?P<plain>[^)'\"]+))\s*\)",
     re.IGNORECASE,
 )
+CSS_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+CSS_IMPORT_RE = re.compile(r"@import\b", re.IGNORECASE)
 THEME_SCRIPT_RE = re.compile(r"/js/theme\.min\.(?P<digest>[0-9a-f]{96})\.js")
 SRI_SHA384_RE = re.compile(r"sha384-[A-Za-z0-9+/]{64}")
+WORKERS_DEV_ORIGIN_RE = re.compile(
+    r"https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\."
+    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.workers\.dev"
+)
+VISITOR_MAP_ALT = (
+    "匿名聚合页面请求世界地图；显示过去 90 个 UTC 日内达到五次页面请求阈值的 "
+    "15 度网格，不代表独立访客。"
+)
+VISITOR_MAP_PATHS = {
+    "pixel": "/v1/pixel.svg",
+    "map": "/v1/map.svg",
+    "summary": "/v1/map",
+}
+ACTIVE_RESOURCE_REFERENCES = {
+    ("base", "href"),
+    ("embed", "src"),
+    ("form", "action"),
+    ("iframe", "src"),
+    ("img", "src"),
+    ("img", "srcset"),
+    ("input", "src"),
+    ("link", "href"),
+    ("object", "data"),
+    ("script", "src"),
+    ("source", "src"),
+    ("source", "srcset"),
+    ("track", "src"),
+    ("audio", "src"),
+    ("video", "poster"),
+    ("video", "src"),
+}
 
 
 @dataclass
 class HTMLDocument:
     path: pathlib.Path
+    source: str = ""
     lang: str | None = None
     titles: list[str] = field(default_factory=list)
     canonicals: list[str] = field(default_factory=list)
@@ -74,6 +108,9 @@ class HTMLDocument:
     h1_parts: list[str] = field(default_factory=list)
     post_content_parts: list[str] = field(default_factory=list)
     scripts: list[dict[str, str | None]] = field(default_factory=list)
+    visitor_map_elements: list[tuple[str, dict[str, str | None]]] = field(
+        default_factory=list
+    )
     theme_toggles: list[dict[str, str | None]] = field(default_factory=list)
     head_assets: list[tuple[str, str]] = field(default_factory=list)
     post_entry_count: int = 0
@@ -130,6 +167,8 @@ class DocumentParser(html.parser.HTMLParser):
                 self.document.head_assets.append(("script", attributes["src"] or ""))
         if tag == "button" and "theme-toggle" in classes:
             self.document.theme_toggles.append(attributes)
+        if "data-visitor-map" in attributes:
+            self.document.visitor_map_elements.append((tag, attributes))
         if tag == "li" and "post-entry" in classes:
             self.document.post_entry_count += 1
         if tag in {"head", "script", "style", "template", "noscript"}:
@@ -152,7 +191,17 @@ class DocumentParser(html.parser.HTMLParser):
                 self.document.references.append((tag, "href", href))
         elif tag == "a" and attributes.get("href") is not None:
             self.document.references.append((tag, "href", attributes["href"] or ""))
-        elif tag in {"img", "script", "iframe", "audio", "video", "source"}:
+        elif tag in {
+            "img",
+            "script",
+            "iframe",
+            "audio",
+            "video",
+            "source",
+            "track",
+            "embed",
+            "input",
+        }:
             source = attributes.get("src")
             if source:
                 self.document.references.append((tag, "src", source))
@@ -165,6 +214,12 @@ class DocumentParser(html.parser.HTMLParser):
                         self.document.references.append((tag, "srcset", candidate))
             if tag == "img":
                 self.document.images.append(attributes)
+        elif tag == "object" and attributes.get("data"):
+            self.document.references.append((tag, "data", attributes["data"] or ""))
+        elif tag == "base" and attributes.get("href") is not None:
+            self.document.references.append((tag, "href", attributes["href"] or ""))
+        elif tag == "form" and attributes.get("action") is not None:
+            self.document.references.append((tag, "action", attributes["action"] or ""))
         elif tag == "meta":
             name = (attributes.get("property") or attributes.get("name") or "").casefold()
             content = attributes.get("content")
@@ -216,9 +271,11 @@ def page_url_path(relative: pathlib.PurePosixPath) -> str:
 
 
 def parse_html(path: pathlib.Path) -> HTMLDocument:
+    source = path.read_text(encoding="utf-8")
     parser = DocumentParser(path)
-    parser.feed(path.read_text(encoding="utf-8"))
+    parser.feed(source)
     parser.close()
+    parser.document.source = source
     return parser.document
 
 
@@ -290,11 +347,11 @@ def expected_canonical(relative: pathlib.PurePosixPath) -> str:
 
 
 def validate_image_dimensions(
-    image: dict[str, str | None], context: str
+    image: dict[str, str | None], context: str, *, allow_empty_alt: bool = False
 ) -> list[str]:
     errors: list[str] = []
     alt = image.get("alt")
-    if alt is None or not alt.strip():
+    if (alt is None or not alt.strip()) and not allow_empty_alt:
         errors.append(f"{context}: image needs meaningful non-empty alt text")
 
     dimensions: dict[str, int] = {}
@@ -315,8 +372,265 @@ def validate_image_dimensions(
     return errors
 
 
+def visitor_endpoint(origin: str, kind: str) -> str:
+    return f"{origin}{VISITOR_MAP_PATHS[kind]}"
+
+
+def workers_dev_origin(value: str) -> str | None:
+    """Return an HTTP(S) workers.dev origin, including malformed variants."""
+
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme.casefold() not in {"http", "https"} or not parsed.netloc:
+        return None
+    hostname = (parsed.hostname or "").rstrip(".").casefold()
+    if hostname == "workers.dev" or hostname.endswith(".workers.dev"):
+        return f"{parsed.scheme.casefold()}://{parsed.netloc}"
+    return None
+
+
+def external_http_origin(value: str) -> str | None:
+    parsed = urllib.parse.urlsplit(value)
+    scheme = parsed.scheme.casefold()
+    if scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return f"{scheme}://{parsed.netloc}"
+
+
+def validate_required_attributes(
+    attributes: dict[str, str | None],
+    expected: dict[str, str],
+    context: str,
+) -> list[str]:
+    errors: list[str] = []
+    for name, value in expected.items():
+        if attributes.get(name) != value:
+            errors.append(
+                f"{context}: {name} must be exactly {value!r}, "
+                f"found {attributes.get(name)!r}"
+            )
+    return errors
+
+
+def validate_visitor_map_element(
+    tag: str,
+    attributes: dict[str, str | None],
+    kind: str,
+    origin: str,
+    context: str,
+) -> list[str]:
+    errors: list[str] = []
+    if kind == "pixel":
+        if tag != "img":
+            return [f"{context}: visitor pixel must be an <img>, found <{tag}>"]
+        errors.extend(
+            validate_required_attributes(
+                attributes,
+                {
+                    "data-visitor-map": "pixel",
+                    "src": visitor_endpoint(origin, "pixel"),
+                    "aria-hidden": "true",
+                    "width": "1",
+                    "height": "1",
+                    "loading": "eager",
+                    "crossorigin": "anonymous",
+                    "referrerpolicy": "no-referrer",
+                },
+                context,
+            )
+        )
+        if "alt" not in attributes or attributes.get("alt") not in {None, ""}:
+            errors.append(f"{context}: alt must be present and empty")
+        for forbidden in ("decoding", "fetchpriority", "srcset"):
+            if forbidden in attributes:
+                errors.append(f"{context}: {forbidden} is not allowed")
+    elif kind == "map":
+        if tag != "img":
+            return [f"{context}: visitor map must be an <img>, found <{tag}>"]
+        errors.extend(
+            validate_required_attributes(
+                attributes,
+                {
+                    "data-visitor-map": "map",
+                    "src": visitor_endpoint(origin, "map"),
+                    "alt": VISITOR_MAP_ALT,
+                    "width": "720",
+                    "height": "360",
+                    "loading": "lazy",
+                    "decoding": "async",
+                    "crossorigin": "anonymous",
+                    "referrerpolicy": "no-referrer",
+                    "aria-describedby": "visitor-map-caption",
+                },
+                context,
+            )
+        )
+        for forbidden in ("fetchpriority", "srcset"):
+            if forbidden in attributes:
+                errors.append(f"{context}: {forbidden} is not allowed")
+    elif kind == "summary":
+        if tag != "a":
+            return [f"{context}: visitor summary must be an <a>, found <{tag}>"]
+        errors.extend(
+            validate_required_attributes(
+                attributes,
+                {
+                    "data-visitor-map": "summary",
+                    "href": visitor_endpoint(origin, "summary"),
+                    "hreflang": "zh-CN",
+                    "referrerpolicy": "no-referrer",
+                    "aria-label": "查看匿名访问地区文字版",
+                },
+                context,
+            )
+        )
+        rel_parts = (attributes.get("rel") or "").split()
+        if len(rel_parts) != 2 or set(rel_parts) != {"external", "nofollow"}:
+            errors.append(
+                f"{context}: rel must contain exactly 'external' and 'nofollow'"
+            )
+        for forbidden in ("target", "ping", "download"):
+            if forbidden in attributes:
+                errors.append(f"{context}: {forbidden} is not allowed")
+    else:
+        errors.append(f"{context}: unknown data-visitor-map value {kind!r}")
+    return errors
+
+
+def validate_visitor_map_document(
+    document: HTMLDocument,
+    context: str,
+    visitor_map_origin: str | None,
+    *,
+    is_404: bool,
+) -> list[str]:
+    errors: list[str] = []
+    expected_on_page = visitor_map_origin is not None and not is_404
+    expected_occurrences = 3 if expected_on_page else 0
+    actual_occurrences = document.source.casefold().count("workers.dev")
+    if actual_occurrences != expected_occurrences:
+        errors.append(
+            f"{context}: expected {expected_occurrences} workers.dev occurrence(s), "
+            f"found {actual_occurrences}"
+        )
+
+    if not expected_on_page:
+        if document.visitor_map_elements:
+            errors.append(
+                f"{context}: visitor-map elements are forbidden when collection is off "
+                "or on the 404 page"
+            )
+        return errors
+
+    assert visitor_map_origin is not None
+    by_kind: dict[str, list[tuple[str, dict[str, str | None]]]] = {
+        kind: [] for kind in VISITOR_MAP_PATHS
+    }
+    for tag, attributes in document.visitor_map_elements:
+        marker = attributes.get("data-visitor-map")
+        if marker not in by_kind:
+            errors.append(
+                f"{context}: unexpected data-visitor-map value {marker!r} on <{tag}>"
+            )
+            continue
+        by_kind[marker].append((tag, attributes))
+
+    for kind, elements in by_kind.items():
+        if len(elements) != 1:
+            errors.append(
+                f"{context}: expected exactly one data-visitor-map={kind!r}, "
+                f"found {len(elements)}"
+            )
+            continue
+        tag, attributes = elements[0]
+        errors.extend(
+            validate_visitor_map_element(
+                tag,
+                attributes,
+                kind,
+                visitor_map_origin,
+                f"{context} visitor {kind}",
+            )
+        )
+
+    for kind in VISITOR_MAP_PATHS:
+        endpoint = visitor_endpoint(visitor_map_origin, kind)
+        count = len(
+            re.findall(
+                rf"{re.escape(endpoint)}(?=[\s\"'<>])",
+                document.source,
+            )
+        )
+        if count != 1:
+            errors.append(
+                f"{context}: expected visitor {kind} endpoint exactly once, found {count}"
+            )
+    return errors
+
+
+def validate_external_reference(
+    tag: str,
+    attribute: str,
+    value: str,
+    context: str,
+    visitor_map_origin: str | None,
+) -> tuple[list[str], bool]:
+    """Validate a URL boundary and say whether local resolution should be skipped."""
+
+    if tag == "base":
+        return ([f"{context}: <base> is not allowed"], True)
+
+    origin = external_http_origin(value)
+    if origin is None or origin == EXPECTED_ORIGIN:
+        return ([], False)
+
+    parsed = urllib.parse.urlsplit(value)
+    if (parsed.hostname or "").casefold() == "groklab.github.io":
+        return (
+            [f"{context}: internal absolute URL must use {EXPECTED_ORIGIN}: {value}"],
+            True,
+        )
+
+    if tag == "a":
+        # Ordinary external links are content, not active subresources. The
+        # visitor-map checker separately constrains every workers.dev link.
+        worker_origin = workers_dev_origin(value)
+        if worker_origin is not None:
+            expected = (
+                visitor_endpoint(visitor_map_origin, "summary")
+                if visitor_map_origin is not None
+                else None
+            )
+            if value != expected:
+                return (
+                    [f"{context}: unexpected workers.dev link: {value}"],
+                    True,
+                )
+        return ([], True)
+
+    if (
+        visitor_map_origin is not None
+        and tag == "img"
+        and attribute == "src"
+        and value
+        in {
+            visitor_endpoint(visitor_map_origin, "pixel"),
+            visitor_endpoint(visitor_map_origin, "map"),
+        }
+    ):
+        return ([], True)
+
+    if (tag, attribute) in ACTIVE_RESOURCE_REFERENCES:
+        return (
+            [f"{context}: external active resource is not allowed: {value}"],
+            True,
+        )
+    return ([], True)
+
+
 def validate_html_documents(
-    public: pathlib.Path, documents: dict[pathlib.Path, HTMLDocument]
+    public: pathlib.Path,
+    documents: dict[pathlib.Path, HTMLDocument],
+    visitor_map_origin: str | None,
 ) -> list[str]:
     errors: list[str] = []
     by_resolved_path = {path.resolve(): document for path, document in documents.items()}
@@ -325,6 +639,16 @@ def validate_html_documents(
         relative = pathlib.PurePosixPath(path.relative_to(public).as_posix())
         context = relative.as_posix()
         current_page = page_url_path(relative)
+        is_404 = relative.as_posix() == "404.html"
+
+        errors.extend(
+            validate_visitor_map_document(
+                document,
+                context,
+                visitor_map_origin,
+                is_404=is_404,
+            )
+        )
 
         if not document.lang or not document.lang.strip():
             errors.append(f"{context}: <html> needs a non-empty lang attribute")
@@ -403,12 +727,33 @@ def validate_html_documents(
                 errors.append(f"{context}: theme toggle is missing data-theme-toggle")
 
         for number, image in enumerate(document.images, start=1):
-            errors.extend(validate_image_dimensions(image, f"{context} image {number}"))
+            is_visitor_pixel = (
+                visitor_map_origin is not None
+                and image.get("data-visitor-map") == "pixel"
+                and image.get("src") == visitor_endpoint(visitor_map_origin, "pixel")
+            )
+            errors.extend(
+                validate_image_dimensions(
+                    image,
+                    f"{context} image {number}",
+                    allow_empty_alt=is_visitor_pixel,
+                )
+            )
 
         for tag, attribute, value in document.references:
             reference_context = f"{context} <{tag}> {attribute}"
             if tag == "meta":
                 errors.extend(absolute_site_url(value, reference_context))
+            boundary_errors, skip_local_resolution = validate_external_reference(
+                tag,
+                attribute,
+                value,
+                reference_context,
+                visitor_map_origin,
+            )
+            errors.extend(boundary_errors)
+            if skip_local_resolution:
+                continue
             local = local_url_path(value, current_page, errors, reference_context)
             if local is None:
                 continue
@@ -430,15 +775,45 @@ def validate_css(public: pathlib.Path) -> list[str]:
         relative = pathlib.PurePosixPath(stylesheet.relative_to(public).as_posix())
         current = f"/{relative.as_posix()}"
         text = stylesheet.read_text(encoding="utf-8")
-        for match in CSS_URL_RE.finditer(text):
+        active_text = CSS_COMMENT_RE.sub("", text)
+        for _match in CSS_IMPORT_RE.finditer(active_text):
+            errors.append(
+                f"{relative.as_posix()}: CSS @import is not allowed; bundle local styles instead"
+            )
+        for match in CSS_URL_RE.finditer(active_text):
             value = (match.group("double") or match.group("single") or match.group("plain")).strip()
             context = f"{relative.as_posix()} CSS url()"
+            origin = external_http_origin(value)
+            if origin is not None and origin != EXPECTED_ORIGIN:
+                errors.append(f"{context}: external active resource is not allowed: {value}")
+                continue
             local = local_url_path(value, current, errors, context)
             if local is None:
                 continue
             url_path, _fragment = local
             if resolve_public_path(public, url_path) is None:
                 errors.append(f"{context}: broken internal asset {value}")
+    return errors
+
+
+def validate_non_html_worker_references(public: pathlib.Path) -> list[str]:
+    errors: list[str] = []
+    for path in sorted(public.rglob("*")):
+        if not path.is_file() or path.suffix.casefold() == ".html":
+            continue
+        relative = path.relative_to(public).as_posix()
+        if "workers.dev" in relative.casefold():
+            errors.append(f"{relative}: workers.dev is forbidden in artifact paths")
+            continue
+        try:
+            contains_worker = b"workers.dev" in path.read_bytes().lower()
+        except OSError as exc:
+            errors.append(f"{relative}: cannot inspect for workers.dev references: {exc}")
+            continue
+        if contains_worker:
+            errors.append(
+                f"{relative}: workers.dev references are allowed only in validated HTML elements"
+            )
     return errors
 
 
@@ -517,9 +892,25 @@ def validate_identity(
     return errors
 
 
+def visitor_map_origin_argument(value: str) -> str:
+    if value != value.strip() or WORKERS_DEV_ORIGIN_RE.fullmatch(value) is None:
+        raise argparse.ArgumentTypeError(
+            "must be a bare lowercase HTTPS <worker>.<account>.workers.dev origin"
+        )
+    return value
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("public", nargs="?", type=pathlib.Path, default=pathlib.Path("public"))
+    parser.add_argument(
+        "--visitor-map-origin",
+        type=visitor_map_origin_argument,
+        help=(
+            "validate the enabled anonymous-map contract for this exact "
+            "workers.dev origin; omit to require a tracker-free artifact"
+        ),
+    )
     arguments = parser.parse_args()
     public = arguments.public.resolve()
     errors: list[str] = []
@@ -541,8 +932,12 @@ def main() -> int:
         if not documents:
             errors.append("artifact does not contain any HTML files")
 
-    errors.extend(validate_html_documents(public, documents))
+    errors.extend(
+        validate_html_documents(public, documents, arguments.visitor_map_origin)
+    )
     errors.extend(validate_css(public))
+    if public.is_dir():
+        errors.extend(validate_non_html_worker_references(public))
     if (public / "index.xml").is_file():
         errors.extend(validate_xml(public, "index.xml"))
     if (public / "sitemap.xml").is_file():
@@ -556,7 +951,8 @@ def main() -> int:
 
     print(
         f"Site check passed: {len(documents)} HTML pages, links/assets, metadata, "
-        "images, RSS, and sitemap."
+        f"images, RSS, sitemap, and visitor map "
+        f"{'enabled' if arguments.visitor_map_origin else 'off'}."
     )
     return 0
 

@@ -1,5 +1,59 @@
-<footer class="site-footer">
-  {{- with .Site.Home.OutputFormats.Get "rss" }}
-    <a href="{{ .RelPermalink }}" rel="alternate" type="application/rss+xml">RSS</a>
-  {{- end }}
-</footer>
+{{- $visitorMapEnabled := false -}}
+{{- $visitorMapOrigin := "" -}}
+{{- with .Site.Params.visitor_map -}}
+  {{- if not (reflect.IsMap .) -}}
+    {{- errorf "params.visitor_map must be a map" -}}
+  {{- end -}}
+  {{- if or (ne (len .) 2) (not (isset . "enabled")) (not (isset . "origin")) -}}
+    {{- errorf "params.visitor_map must contain exactly enabled and origin" -}}
+  {{- end -}}
+  {{- if ne (printf "%T" .enabled) "bool" -}}
+    {{- errorf "params.visitor_map.enabled must be a Boolean" -}}
+  {{- end -}}
+  {{- if ne (printf "%T" .origin) "string" -}}
+    {{- errorf "params.visitor_map.origin must be a string" -}}
+  {{- end -}}
+  {{- $visitorMapEnabled = .enabled -}}
+  {{- $visitorMapOrigin = .origin -}}
+{{- end -}}
+{{- if ne $visitorMapOrigin (strings.TrimSpace $visitorMapOrigin) -}}
+  {{- errorf "params.visitor_map.origin must not contain surrounding whitespace" -}}
+{{- end -}}
+{{- if and (not $visitorMapEnabled) $visitorMapOrigin -}}
+  {{- errorf "params.visitor_map.origin must be empty while the visitor map is disabled" -}}
+{{- end -}}
+{{- if $visitorMapEnabled -}}
+  {{- $workerOriginPattern := `^https://[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.workers\.dev$` -}}
+  {{- if ne (len (findRE $workerOriginPattern $visitorMapOrigin)) 1 -}}
+    {{- errorf "params.visitor_map.origin must be a bare lowercase HTTPS <worker>.<account>.workers.dev origin" -}}
+  {{- end -}}
+{{- end -}}
+{{- $renderVisitorMap := and $visitorMapEnabled (ne .Kind "404") -}}
+{{- if $renderVisitorMap }}
+  <footer class="site-footer site-footer--map">
+    <div class="site-footer__content">
+      <nav class="site-footer__links" aria-label="页脚导航">
+        {{- with .Site.Home.OutputFormats.Get "rss" }}
+          <a href="{{ .RelPermalink }}" rel="alternate" type="application/rss+xml">RSS</a>
+        {{- end }}
+      </nav>
+      <section class="visitor-map" aria-labelledby="visitor-map-title">
+        <h2 id="visitor-map-title" class="visitor-map__title">访问地区</h2>
+        <figure class="visitor-map__figure">
+          <img data-visitor-map="map" class="visitor-map__image" src="{{ $visitorMapOrigin }}/v1/map.svg" width="720" height="360" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" alt="匿名聚合页面请求世界地图；显示过去 90 个 UTC 日内达到五次页面请求阈值的 15 度网格，不代表独立访客。" aria-describedby="visitor-map-caption">
+          <figcaption id="visitor-map-caption" class="visitor-map__caption">
+            过去 90 个 UTC 日的页面请求，按 15° 网格汇总；至少 5 次才显示，数量只显示区间。这不是独立访客统计。
+            <a data-visitor-map="summary" class="visitor-map__text-link" href="{{ $visitorMapOrigin }}/v1/map" rel="external nofollow" hreflang="zh-CN" referrerpolicy="no-referrer" aria-label="查看匿名访问地区文字版">查看文字版</a>
+          </figcaption>
+        </figure>
+        <img data-visitor-map="pixel" class="visitor-map__pixel" src="{{ $visitorMapOrigin }}/v1/pixel.svg" alt="" aria-hidden="true" width="1" height="1" loading="eager" crossorigin="anonymous" referrerpolicy="no-referrer">
+      </section>
+    </div>
+  </footer>
+{{- else }}
+  <footer class="site-footer">
+    {{- with .Site.Home.OutputFormats.Get "rss" }}
+      <a href="{{ .RelPermalink }}" rel="alternate" type="application/rss+xml">RSS</a>
+    {{- end }}
+  </footer>
+{{- end }}

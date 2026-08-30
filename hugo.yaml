@@ -22,6 +22,10 @@ outputs:
 
 params:
   description: "真假维斯的个人写作。"
+  visitor_map:
+    # Keep this double latch locked until the Workers Free endpoint is verified.
+    enabled: false
+    origin: ""
 
 markup:
   goldmark:
