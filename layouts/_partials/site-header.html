@@ -1,5 +1,8 @@
 <header class="site-header">
-  <a class="brand" href="{{ .Site.Home.RelPermalink }}" aria-label="真假维斯"><span class="brand__true">真</span><span class="brand__false">假</span><span class="brand__jarvis">维斯</span></a>
+  <div class="brand-lockup">
+    <a class="brand" href="{{ .Site.Home.RelPermalink }}" aria-label="真假维斯"><span class="brand__true">真</span><span class="brand__false">假</span><span class="brand__jarvis">维斯</span></a>
+    <span class="brand-tagline" aria-hidden="true">real jarvis</span>
+  </div>
   <nav class="site-nav" aria-label="主要导航">
     <a href="{{ .Site.Home.RelPermalink }}"{{ if .IsHome }} aria-current="page"{{ end }}>首页</a>
     {{- with .Site.GetPage "/posts" }}

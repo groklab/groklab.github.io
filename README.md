@@ -5,7 +5,7 @@ Pages 的个人博客：<https://groklab.github.io/>。
 
 项目没有 JavaScript、`npm` 或其他 JS 包管理器。文章使用 Markdown；数学公式在
 构建时转成 MathML，图片在构建时生成响应式 WebP 版本。中文正文使用自托管的
-霞鹜文楷 GB，拉丁文字与数学使用 STIX Two。字体来源与许可见
+霞鹜文楷 GB，拉丁文字使用 Newsreader，数学使用 STIX Two Math。字体来源与许可见
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 
 ## 准备环境

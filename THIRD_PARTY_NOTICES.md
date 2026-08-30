@@ -15,23 +15,31 @@ following font files retain their respective upstream licenses.
 The font file is the unmodified upstream TTF. The site uses the upstream font
 name and does not imply endorsement by its authors.
 
-## STIX Two Text and STIX Two Math
+## Newsreader
 
-- Files: `static/fonts/STIXTwoText-Variable.ttf` and
-  `static/fonts/STIXTwoText-Italic-Variable.ttf`, plus
-  `static/fonts/STIXTwoMath-Regular.ttf`
-- Versions: STIX Two Text 2.13 b171; STIX Two Math 2.12 b168a
-- Sources: <https://github.com/google/fonts/tree/main/ofl/stixtwotext> and
-  <https://github.com/google/fonts/tree/main/ofl/stixtwomath>
+- Files: `static/fonts/Newsreader-Variable.woff2` and
+  `static/fonts/Newsreader-Italic-Variable.woff2`
+- Version: 1.003
+- Source: <https://github.com/productiontype/Newsreader/tree/cfcb4f7af0e52c25e8df2a2431814c8e5fe2e155/fonts/variable/woff2>
 - SHA-256 (roman):
-  `7962b8b7811e6a896c9a91a0bccbb5241047770eb24d4997c5cb5fe21d5c0df2`
+  `1faa3380ac0e87e057b180e03fd94bd708a612afb67d2590677be4508909fae9`
 - SHA-256 (italic):
-  `88c0e2e316eaff56eddc9e51e4850317e2a1e490bbf758b2dec4793aedba9c74`
+  `d184d5e6a967ffea109d9f99fa245eccbff221e27f30bfd7d6fdb2940fcc6265`
+- License: SIL Open Font License 1.1, reproduced in
+  `static/fonts/OFL-Newsreader.txt`
+
+The two files are unmodified upstream variable WOFF2 fonts. The site uses the
+upstream font name and does not imply endorsement by its authors.
+
+## STIX Two Math
+
+- File: `static/fonts/STIXTwoMath-Regular.ttf`
+- Version: 2.12 b168a
+- Source: <https://github.com/google/fonts/tree/main/ofl/stixtwomath>
 - SHA-256 (math):
   `562551b15b836e6e01d1b7350909baf3c8c8d83260c1190fbf4544333e6936de`
 - License: SIL Open Font License 1.1, reproduced in
-  `static/fonts/OFL-STIX-Two-Text.txt`
+  `static/fonts/OFL-STIX-Two.txt`
 
-The two STIX Two Text files are unmodified upstream variable TTFs. The STIX
-Two Math file is the unmodified upstream regular TTF. STIX Fonts is a trademark
-of The Institute of Electrical and Electronics Engineers, Inc.
+The file is the unmodified upstream regular TTF. STIX Fonts is a trademark of
+The Institute of Electrical and Electronics Engineers, Inc.

@@ -7,19 +7,19 @@
 }
 
 @font-face {
-  font-family: "STIX Two Text";
-  src: url("/fonts/STIXTwoText-Variable.ttf") format("truetype");
+  font-family: "Newsreader";
+  src: url("/fonts/Newsreader-Variable.woff2") format("woff2");
   font-display: swap;
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 200 800;
 }
 
 @font-face {
-  font-family: "STIX Two Text";
-  src: url("/fonts/STIXTwoText-Italic-Variable.ttf") format("truetype");
+  font-family: "Newsreader";
+  src: url("/fonts/Newsreader-Italic-Variable.woff2") format("woff2");
   font-display: swap;
   font-style: italic;
-  font-weight: 400 700;
+  font-weight: 200 800;
 }
 
 @font-face {
@@ -38,7 +38,7 @@
   --fjord: #245b58;
   --ice: #dde6e1;
 
-  --font-reading: "STIX Two Text", "LXGW WenKai GB", "Kaiti SC", STKaiti,
+  --font-reading: "Newsreader", "LXGW WenKai GB", "Kaiti SC", STKaiti,
     serif;
   --font-utility: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
     Liberation Mono, monospace;
@@ -145,6 +145,12 @@ a:hover {
   border-bottom: var(--rule);
 }
 
+.brand-lockup {
+  display: grid;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .brand {
   position: relative;
   display: grid;
@@ -157,6 +163,17 @@ a:hover {
   letter-spacing: 0.04em;
   line-height: 1;
   text-decoration: none;
+}
+
+.brand-tagline {
+  margin-top: 0.38rem;
+  padding-left: calc(var(--rail) + 0.38em);
+  color: var(--slate);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .brand::before {
@@ -580,7 +597,7 @@ a.post-entry__title:hover {
 }
 
 .post-content math {
-  font-family: "STIX Two Math", "STIX Two Text", serif;
+  font-family: "STIX Two Math", "Newsreader", serif;
 }
 
 .post-content math:not([display="block"]) {
@@ -704,6 +721,10 @@ a.post-entry__title:hover {
 
   .brand {
     font-size: 1.1rem;
+  }
+
+  .brand-tagline {
+    font-size: 0.62rem;
   }
 
   .site-nav a {

@@ -19,7 +19,9 @@
 - This repository is the public GitHub Pages user site for `groklab`, published
   at `https://groklab.github.io/`. Do not rename the repository or introduce a
   project-site path prefix.
-- The visible site name and accessible brand name are exactly `真假维斯`.
+- The visible site name and accessible brand name are exactly `真假维斯`. Its
+  visible secondary tagline is exactly `real jarvis`; keep the accessible link
+  name as `真假维斯`.
 - The generator is Hugo Extended 0.165.0 with custom, repository-local
   templates and CSS. There is no theme, JavaScript runtime, JS package manager,
   package manifest, or lockfile.
@@ -51,7 +53,7 @@
   thin true/false axis as the visual signature; avoid cards, gradients, heavy
   shadows, pill-heavy UI, ornamental motion, and generic template styling.
 - Chinese text uses the self-hosted, unmodified LXGW WenKai GB font. Latin text
-  uses STIX Two Text and math uses STIX Two Math. The user explicitly chose
+  uses Newsreader and math uses STIX Two Math. The user explicitly chose
   typography quality over the full Chinese font's mobile transfer size.
 - Add no font whose redistribution or web-embedding rights are unclear. Keep
   font licenses, upstream versions, and checksums in

@@ -36,7 +36,8 @@ restore the previously active account.
 Decisions made on 2026-08-30:
 
 - The site name is exactly `真假维斯` in the wordmark, metadata, and accessible
-  name.
+  name. The secondary wordmark line is exactly `real jarvis`; it is visual
+  decoration, while the accessible home-link name remains `真假维斯`.
 - Hugo was selected over Astro and Jekyll for a small static binary toolchain,
   native Markdown/page-bundle image processing, and build-time MathML.
 - There is no JavaScript package manager, client-side JavaScript, external font
@@ -57,9 +58,11 @@ Decisions made on 2026-08-30:
 - The Chinese font is the unmodified LXGW WenKai GB 1.522 TTF under SIL OFL
   1.1. The user explicitly prioritizes its elegant contemporary-kai appearance
   over its roughly 25 MB mobile transfer cost.
-- Latin text uses unmodified STIX Two Text variable TTFs and math uses STIX Two
-  Math, all under SIL OFL 1.1. Sources and checksums are recorded in
-  `THIRD_PARTY_NOTICES.md`.
+- Latin text uses the unmodified Newsreader 1.003 variable WOFF2 files; math
+  continues to use STIX Two Math. Both are under SIL OFL 1.1, and sources and
+  checksums are recorded in `THIRD_PARTY_NOTICES.md`. Newsreader was selected
+  for a more distinctive editorial voice than STIX Two Text while remaining
+  classic, readable, and harmonious with LXGW WenKai GB.
 - 得到今楷 is not used because it is exclusive to 得到. 仓耳今楷 is not used
   because clear redistribution and web-embedding permission was not established.
 
@@ -125,7 +128,8 @@ Do not infer or implement these without a later explicit user decision:
 | Decision | Current state |
 | --- | --- |
 | Custom domain | Not selected; no `CNAME` or DNS configuration |
-| Analytics, comments, forms, search, or CMS | Not selected |
+| Analytics or visitor map | The user asked about footer statistics and a world map; no service, privacy model, or implementation has been selected |
+| Comments, forms, search, or CMS | Not selected |
 | Project/content license | Not selected; third-party font licenses only |
 | Author bio, portrait, social links, or additional sections | Not supplied |
 

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 EXPECTED_ORIGIN = "https://groklab.github.io"
 EXPECTED_SITE_NAME = "真假维斯"
+EXPECTED_TAGLINE = "real jarvis"
 EXPECTED_FIRST_TITLE = "hello world"
 EXPECTED_FIRST_BODY = (
     "AI时代，我突然想让自己写点东西。可多可少。未必是好的写作，"
@@ -64,6 +65,8 @@ class HTMLDocument:
     text_parts: list[str] = field(default_factory=list)
     brand_labels: list[str | None] = field(default_factory=list)
     brand_text_parts: list[str] = field(default_factory=list)
+    brand_tagline_count: int = 0
+    brand_tagline_text_parts: list[str] = field(default_factory=list)
     h1_parts: list[str] = field(default_factory=list)
     post_content_parts: list[str] = field(default_factory=list)
     script_count: int = 0
@@ -81,6 +84,7 @@ class DocumentParser(html.parser.HTMLParser):
         self._title_depth = 0
         self._nonvisible_depth = 0
         self._brand_depth = 0
+        self._brand_tagline_depth = 0
         self._h1_depth = 0
         self._post_content_depth = 0
 
@@ -99,6 +103,11 @@ class DocumentParser(html.parser.HTMLParser):
         elif tag == "a" and "brand" in classes:
             self._brand_depth = 1
             self.document.brand_labels.append(attributes.get("aria-label"))
+        if self._brand_tagline_depth and not is_void:
+            self._brand_tagline_depth += 1
+        elif "brand-tagline" in classes:
+            self._brand_tagline_depth = 1
+            self.document.brand_tagline_count += 1
         if self._post_content_depth and not is_void:
             self._post_content_depth += 1
         elif "post-content" in classes:
@@ -163,6 +172,8 @@ class DocumentParser(html.parser.HTMLParser):
             self._h1_depth -= 1
         if self._brand_depth:
             self._brand_depth -= 1
+        if self._brand_tagline_depth:
+            self._brand_tagline_depth -= 1
         if self._post_content_depth:
             self._post_content_depth -= 1
         if tag in {"head", "script", "style", "template", "noscript"} and self._nonvisible_depth:
@@ -173,6 +184,8 @@ class DocumentParser(html.parser.HTMLParser):
             self.document.titles.append(data)
         if self._brand_depth:
             self.document.brand_text_parts.append(data)
+        if self._brand_tagline_depth:
+            self.document.brand_tagline_text_parts.append(data)
         if self._h1_depth:
             self.document.h1_parts.append(data)
         if self._post_content_depth:
@@ -326,6 +339,11 @@ def validate_html_documents(
             errors.append(
                 f"{context}: visible and accessible brand must both be exactly "
                 f"{EXPECTED_SITE_NAME}"
+            )
+        brand_tagline = "".join(document.brand_tagline_text_parts).strip()
+        if document.brand_tagline_count != 1 or brand_tagline != EXPECTED_TAGLINE:
+            errors.append(
+                f"{context}: expected one visible brand tagline named {EXPECTED_TAGLINE}"
             )
         if document.script_count:
             errors.append(
