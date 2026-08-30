@@ -33,7 +33,7 @@ At handoff, verify these statements against Git and GitHub before relying on the
 - Bootstrap files: `AGENTS.md` and `HANDOFF.md`
 - No framework, package manager, dependencies, theme, site code, generated site, or content structure has been selected.
 - No site entry file exists. A `README.md` was deliberately omitted so the bootstrap cannot become an accidental placeholder homepage.
-- GitHub automatically configured Pages when this specially named public repository was pushed. Immediately after the first push, the API reported the legacy branch build from `main` `/`, HTTPS enforced, and an initial build in progress at `https://groklab.github.io/`.
+- GitHub automatically configured Pages when this specially named public repository was pushed. Verified configuration: legacy branch build from `main` `/`, HTTPS enforced, and default URL `https://groklab.github.io/`. The bootstrap build completed successfully; that confirms the deployment machinery only, because no blog entry page has been implemented.
 - That automatic branch setting is not a final architecture choice. Recheck its current status, then either retain it for a compatible branch/Jekyll approach or replace it with GitHub Actions after the stack is selected.
 - No custom domain, analytics, comments, CMS, external forms, or license has been chosen.
 
