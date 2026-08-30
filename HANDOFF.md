@@ -187,9 +187,11 @@ The selected Counterpoint visual system was verified on 2026-08-30:
 
 ## Anonymous visitor-map implementation state
 
-The deploy-locked source lives in `visitor-map/`. A strict default-off Hugo
-footer integration now exists locally, but production remains tracker-free and
-no Cloudflare resource has been provisioned yet. Current properties:
+The deploy-locked source lives in `visitor-map/`. The committed Hugo
+configuration remains strictly default-off, while production is enabled only
+through the paired GitHub Actions variables. One Workers Free service and one
+D1 Free database, both named `groklab-visitor-map`, now back the live footer at
+`https://groklab-visitor-map.ronglu-pe.workers.dev`. Current properties:
 
 - A dependency-free ESM Worker serves a strict no-JavaScript hit pixel, a
   server-rendered SVG, a Chinese text/table alternative, and static health
@@ -225,22 +227,30 @@ no Cloudflare resource has been provisioned yet. Current properties:
   GitHub Actions can enable production only through the paired public
   `VISITOR_MAP_ENABLED` and `VISITOR_MAP_ORIGIN` repository variables.
 
-The Cloudflare preflight is now verified. Wrangler 4.127.1 was pinned from npm
-and its registry SHA-512 integrity was checked. Device-flow OAuth is isolated
-under `/tmp`; no global Wrangler configuration or project package-manager file
-was created. The account-specific official Workers plans page visibly showed
-Workers Free at $0. A real Wrangler dry-run bundled the Worker at 28.44 KiB
-gzip, local D1 applied the migration, all routes and source gates ran through
-the local Workers runtime, seeded aggregate data appeared in both outputs, and
-the scheduled event pruned old rows. Every autoconfiguration and experimental
-auto-provision flag was explicitly disabled.
+The Cloudflare deployment was verified with Wrangler 4.127.1, pinned from npm
+with its registry SHA-512 integrity checked. Device-flow OAuth and the real
+account/database IDs were isolated under `/tmp`; no global Wrangler
+configuration, workspace deployment config, or project package-manager file was
+created. The account-specific official Workers plans page visibly showed
+Workers Free at $0. Every autoconfiguration and experimental auto-provision flag
+was explicitly disabled.
 
-The remaining release gates are remote and deliberate: read-list D1 to prevent
-duplicates, create exactly one named database without config mutation, write
-its ID only into the temporary config, apply the migration with explicit
-`--remote`, deploy exactly one Worker with `--strict`, and verify the real
-origin and settings. Only then set the paired GitHub variables, deploy Pages,
-run live browser/privacy/visual QA, and revoke the temporary OAuth grant.
+The pre-deploy D1 inventory was empty. Deployment created exactly one named D1
+without mutating repository configuration, applied `0001_aggregate_counts.sql`
+with explicit `--remote`, and uploaded exactly one Worker with `--strict`.
+Post-deploy inventory still showed one Worker and one D1, with no migration
+pending. The Worker has only the `DB` binding, the daily `17 7 * * *` retention
+cron, workers.dev enabled, preview URLs disabled, Logpush disabled, no Tail
+Worker or live tail session, and no Workers Logs observability object. The
+effective Workers Logs parent is off; Cloudflare represents that disabled state
+as `observability: null` rather than exposing the nested disabled values.
+
+Remote route checks covered health, text and SVG maps, HEAD pixel behavior,
+CORS/Fetch Metadata, OPTIONS, unsupported methods, wrong origins, query
+rejection, security headers, and the empty-threshold state. A single real
+browser page load then exercised the eligible no-JavaScript pixel and produced a
+nonzero aggregate D1 counter without disclosing its precise cell. This is only
+page-request counting, not a unique-visitor measurement.
 
 The deploy-locked source was committed and verified on 2026-08-30:
 
@@ -254,10 +264,24 @@ The deploy-locked source was committed and verified on 2026-08-30:
   and live HTML/CSS/theme-JS bytes matched the strict local artifact. The live
   root contained no `workers.dev`, pixel, map, or visitor-service endpoint.
 
-Local commit `a018a14` adds the default-off Hugo integration, strict artifact
-checker, negative integration suite, and variable-controlled Actions path. It
-has not yet been pushed or verified by Actions; production therefore remains
-at `2ca7019` until the next documented release.
+Commit `a018a14` added the default-off Hugo integration, strict artifact checker,
+negative integration suite, and variable-controlled Actions path. Commit
+`dff95ce` documented its release gates. Workflow run `33325924825` validated and
+deployed that exact commit with the production variables still off. After the
+remote Worker passed its gates, the paired repository variables were set and
+workflow-dispatch run `33326472515` built and deployed the same exact commit in
+enabled mode; both jobs succeeded.
+
+The live root, archive, post, and custom 404 were downloaded after that enabled
+deployment. All four were byte-for-byte identical to a strict local build using
+the real Worker origin. Each ordinary page contains exactly one pixel, one SVG
+map, and one text alternative; the 404 contains none. Chromium loaded only the
+site's own assets plus the two approved Worker image routes, emitted no console
+warning or error, loaded LXGW WenKai GB and Newsreader, and showed no horizontal
+overflow at 320, 390, or 1440 CSS pixels. The header, post-list, and footer axes
+aligned exactly at each width, the map remained 2:1, and the theme and text-link
+targets remained 44 px tall. Light and dark screenshots passed final visual
+review before release documentation was committed.
 
 The aggregate query can read up to 25,920 retained rows in the theoretical
 maximum, and Cloudflare's Cache API is data-center-local. A distributed abuser
@@ -272,7 +296,7 @@ Do not infer or implement these without a later explicit user decision:
 | Decision | Current state |
 | --- | --- |
 | Custom domain | Not selected; no `CNAME` or DNS configuration |
-| Anonymous visitor map deployment | Workers Free identity and local Wrangler/D1 runtime are verified; default-off Hugo integration exists locally; remote D1/Worker provisioning, endpoint verification, Actions variables, and live Pages QA remain pending |
+| Anonymous visitor map deployment | Live on Workers Free and D1 Free through paired Actions variables; committed Hugo config remains default-off, and clearing both variables plus redeploying is the rollback |
 | Comments, forms, search, or CMS | Not selected |
 | Project/content license | Not selected; third-party font licenses only |
 | Author bio, portrait, social links, or additional sections | Not supplied |

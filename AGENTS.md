@@ -84,6 +84,12 @@
   Disabled output must contain no Worker URL or visitor-map element; enabled
   output uses only the fixed pixel, SVG-map, and text-summary routes and omits
   collection from the 404 page.
+- Production currently enables that latch against the verified Workers Free
+  service and D1 Free database named `groklab-visitor-map`. Treat the existing
+  resources as durable state: inventory and inspect them before any update, do
+  not create replacements implicitly, and preserve the committed default-off
+  configuration. Clearing both repository variables and redeploying is the
+  supported zero-Worker-request rollback.
 
 ## Local commands and quality gate
 
