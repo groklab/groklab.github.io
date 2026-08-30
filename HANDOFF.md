@@ -210,19 +210,34 @@ the Hugo footer and has not been provisioned on Cloudflare. Current properties:
   previews, logs, and metrics, and is not auto-discovered. Real IDs belong only
   in ignored `visitor-map/wrangler.jsonc`; `.env*`, `.dev.vars*`, and local
   Wrangler state are ignored.
-- Thirty Node tests plus a standard-library SQLite execution check cover the
+- Thirty-one Node tests plus a standard-library SQLite execution check cover the
   privacy contract, request gates, renderer, source provenance, SQL
   `RETURNING`, caps, thresholding, and observable retention failures. Pages CI
   runs both checks without installing packages.
 
 Remaining release gates are deliberate: this machine currently has no verified
-Cloudflare CLI/dashboard deployment identity; the owner must sign in to a free
+Cloudflare CLI/dashboard deployment identity. No Wrangler, workerd, Miniflare,
+cloudflared, cached auth, or Cloudflare environment configuration was found;
+the in-app browser connection was unavailable, so a possible login in an
+ordinary browser could not be inspected. The owner must sign in to a free
 account and the target must visibly be Workers Free. Before provisioning, pin
 and run current Wrangler against local D1 to validate its config, migration,
 bundle, scheduled handler, and request metadata. Then create D1, apply the
 migration, deploy to `workers.dev`, verify all endpoints and quota settings,
 and only afterward place the real endpoint in Hugo. Do not add a placeholder or
 dead endpoint to the live site.
+
+The deploy-locked source was committed and verified on 2026-08-30:
+
+- Commit `4ebd9ad796c8f9943475aa6e938af31bce84d586` added the Worker, D1
+  migration, Natural Earth generator, tests, CI gate, and documentation without
+  a real Cloudflare ID or endpoint.
+- Workflow run `33324485846` built and deployed that exact commit; both jobs and
+  the new visitor-map validation step succeeded while Pages remained in
+  workflow mode with HTTPS enforced.
+- The live root and post returned 200, the custom missing route returned 404,
+  and live HTML/CSS/theme-JS bytes matched the strict local artifact. The live
+  root contained no `workers.dev`, pixel, map, or visitor-service endpoint.
 
 The aggregate query can read up to 25,920 retained rows in the theoretical
 maximum, and Cloudflare's Cache API is data-center-local. A distributed abuser
