@@ -8,7 +8,7 @@ Create a personal blog for the GitHub account `groklab`, hosted as its GitHub Pa
 
 `https://groklab.github.io/`
 
-This bootstrap establishes the repository and Codex working context only. It intentionally does not implement or publish a blog.
+The repository is moving from bootstrap into product and architecture selection. No blog implementation has been published yet.
 
 ## Why this repository name
 
@@ -46,19 +46,28 @@ This machine has multiple GitHub identities. Any API or remote write must explic
 - Repository: `groklab/groklab.github.io`
 - Intended default URL: `https://groklab.github.io/`
 - Hosting target: GitHub Pages
-- Bootstrap should remain framework-neutral until the next session establishes requirements.
+
+## Product brief established on 2026-08-30
+
+- The site name is exactly `真假维斯`. Preserve these four characters in the visible wordmark, page metadata, and accessible name.
+- The site is a public personal writing space for short or long notes in the author's own voice. The home page should put the newest post first.
+- The authoring workflow should be Git-native Markdown: add a post under a documented content folder, commit, and push; CI/CD should then validate, build, and publish automatically.
+- Each post needs a visible publication timestamp. Use an explicit timezone and a stable permalink so later edits do not silently change publication order or URLs.
+- Markdown posts must support colocated images with required alternative text and LaTeX-style inline and display mathematics.
+- The initial post is titled `hello world` and contains exactly: `AI时代，我突然想让自己写点东西。可多可少。未必是好的写作，但力争是我自己的写作。开始罢。`
+- The visual direction is highly restrained Nordic minimalism. Typography should evoke the screen-friendly contemporary-kai character of 得到今楷/仓耳今楷 for Chinese and the printed LaTeX character of Computer Modern for Latin text, without using a font whose web-embedding rights are unclear.
+- The launch experience must be excellent on narrow iOS and Android screens as well as desktop, with semantic HTML, keyboard access, visible focus, reduced-motion support, sufficient contrast, and a small static payload.
+- The initial release does not require a custom domain, analytics, comments, forms, a CMS, cookies, trackers, or a license. Do not add them without a later explicit decision.
 
 ## Decisions intentionally left open
 
 | Decision | Resolve before |
 | --- | --- |
-| Blog goals, audience, voice, and launch content | Writing the information architecture or final copy |
-| Visual direction and reference sites | Establishing typography, color, layout, or a theme |
-| Authoring workflow and content format | Selecting a framework or content model |
-| Framework or static-site generator | Installing dependencies or scaffolding |
-| Package manager | Creating dependency metadata or a lockfile |
+| Hugo, Astro, or Jekyll/static implementation | Installing dependencies or scaffolding |
+| Project package manager, including an explicit no-JavaScript-package-manager choice | Creating dependency metadata or a lockfile |
 | Branch publishing versus GitHub Actions | Configuring GitHub Pages |
-| URL and permalink policy | Publishing real posts |
+| Exact font assets and their verified web-embedding terms | Committing or serving font files |
+| URL and permalink policy | Publishing the first real post |
 | Custom domain | Adding `CNAME`, DNS, or canonical-domain configuration |
 | Analytics, comments, forms, search, or CMS | Adding third-party services |
 | Content and code licensing | Adding `LICENSE` or license metadata |
