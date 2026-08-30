@@ -190,8 +190,9 @@ The selected Counterpoint visual system was verified on 2026-08-30:
 The deploy-locked source lives in `visitor-map/`. The committed Hugo
 configuration remains strictly default-off, while production is enabled only
 through the paired GitHub Actions variables. One Workers Free service and one
-D1 Free database, both named `groklab-visitor-map`, now back the live footer at
-`https://groklab-visitor-map.ronglu-pe.workers.dev`. Current properties:
+D1 Free database, both named `groklab-visitor-map`, now back the live footer;
+the verified public origin remains only in the repository variable. Current
+properties:
 
 - A dependency-free ESM Worker serves a strict no-JavaScript hit pixel, a
   server-rendered SVG, a Chinese text/table alternative, and static health
