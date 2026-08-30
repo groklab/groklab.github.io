@@ -197,9 +197,9 @@ The selected Counterpoint visual system was verified on 2026-08-30:
 The deploy-locked source lives in `visitor-map/`. The committed Hugo
 configuration remains strictly default-off, while production is enabled only
 through the paired GitHub Actions variables. One Workers Free service and one
-D1 Free database, both named `groklab-visitor-map`, are provisioned for the
-footer; the verified public origin belongs only in the repository variable.
-Current properties:
+D1 Free database, both named `groklab-visitor-map`, now back the live footer;
+the verified public origin remains only in the repository variable. Current
+properties:
 
 - A dependency-free ESM Worker serves a strict no-JavaScript hit pixel, a
   server-rendered accessible SVG, and a static health response. The former HTML
@@ -287,14 +287,44 @@ temporarily disabled while its personalized Worker origin was retired. The
 privacy-cleanup workflow runs and their artifacts were deleted, so their IDs are
 intentionally not retained here.
 
-The all-time release adds one additive D1 migration and preserves the original
+The all-time release added one additive D1 migration and preserves the original
 daily rows for a 90-day rollback window. Its backfill and triggers were applied
 and validated remotely before the Worker was updated. The account workers.dev
 subdomain was replaced with a neutral value; the old personalized hostname no
-longer serves the Worker. The neutral origin remains outside the repository and
-must be set only through the paired production Actions variables when the Pages
-release is enabled. No account ID, database ID, credential, or deployable
-Wrangler configuration is committed.
+longer serves the Worker. The paired production Actions variables retain the
+verified neutral origin outside the repository. No account ID, database ID,
+credential, or deployable Wrangler configuration is committed.
+
+The all-time, identity, and favicon release was verified on 2026-08-30:
+
+- Implementation commit `cb548eab207d8b72f3fc6b5e4a6a29a17372bfc7`
+  changed the public threshold to one, moved public reads to lifetime totals,
+  retired the HTML route, hardened map HEAD requests against uncached D1 reads,
+  changed the theme words to `明` and `暗`, aligned `jarvis`, and installed the
+  original multi-format favicon set.
+- Workflow run `33335395389` built and deployed that exact commit; both jobs
+  succeeded while Pages remained in workflow mode with HTTPS enforced.
+- Fourteen live HTML, feed, metadata, CSS, JavaScript, and icon artifacts were
+  byte-for-byte identical to the strict enabled local build. Ordinary pages
+  contained exactly the pixel and SVG routes, the custom 404 contained neither,
+  and the retired document route returned 404.
+- Live Edge checks at 320, 390, and 1440 CSS pixels loaded the map, favicon,
+  LXGW WenKai GB, and Newsreader; preserved the 2:1 map, one-pixel wordmark
+  correction, theme labels and persistence; and found no horizontal overflow,
+  console warning, or error. Edge emitted one informational lazy-image notice.
+- Direct Worker checks returned 200 for health, SVG map, map HEAD, and pixel
+  HEAD; 403 for a wrong origin; and 404 for the retired document route. The old
+  personalized hostname was unreachable.
+- The current indexed tree, deployed artifacts, live pages, and final Worker
+  bundle contain none of the audited name, email, personal-path, old-hostname,
+  or credential patterns. The prior privacy-bearing Actions runs and artifacts
+  were deleted.
+
+Historical Git objects still contain values deleted from the current tree.
+Removing those objects would require rewriting public history and force-pushing,
+which this repository explicitly prohibits. Do not claim complete historical
+erasure unless the owner separately authorizes that destructive exception;
+current files and live surfaces are clean.
 
 The all-time aggregate query reads at most 288 coarse-cell rows, and
 Cloudflare's Cache API is data-center-local. A distributed abuser
@@ -309,7 +339,7 @@ Do not infer or implement these without a later explicit user decision:
 | Decision | Current state |
 | --- | --- |
 | Custom domain | Not selected; no `CNAME` or DNS configuration |
-| Anonymous visitor map deployment | One Workers Free service and one D1 Free database are provisioned; production enablement uses paired Actions variables, committed Hugo config remains default-off, and clearing both variables plus redeploying is the rollback |
+| Anonymous visitor map deployment | Live on one Workers Free service and one D1 Free database through paired Actions variables; committed Hugo config remains default-off, and clearing both variables plus redeploying is the rollback |
 | Comments, forms, search, or CMS | Not selected |
 | Project/content license | Not selected; third-party font licenses only |
 | Author bio, portrait, social links, or additional sections | Not supplied |
