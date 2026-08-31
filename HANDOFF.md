@@ -347,6 +347,28 @@ eligible map GET returned the new winged-cup SVG without requesting the
 counting pixel. The isolated OAuth session was then logged out and no OAuth
 token field remained in its temporary configuration.
 
+The final map, date-label, and footer release was verified on 2026-08-30:
+
+- Implementation commit `e751b282a0372145ab4540592013d62393864849`
+  introduced the mobile-legible five-level size and ripple encoding, the
+  compact visible legend, the `Houston, TX` human-facing label, and the v6 map
+  cache key while preserving numeric offsets in machine-readable output.
+- Workflow run `33349486435` built and deployed that exact commit; both the
+  validation/build job and Pages deployment job succeeded.
+- All 21 generated live artifacts were byte-for-byte identical to the strict
+  enabled local build. A custom missing URL returned 404 with bytes identical
+  to the local `404.html`.
+- Real-browser checks at 320 and 1440 CSS pixels found no horizontal overflow;
+  loaded Newsreader, LXGW WenKai GB, and the 2:1 SVG map; kept `jarvis` one
+  optical pixel right of `假`; switched and persisted `明`/`暗`; and reported
+  no console warning or error. The one ordinary-page QA load was allowed to
+  exercise the counting pixel; all resizing and theme checks reused that page.
+- The final Worker dry-run and upload remained minified with source-map upload,
+  autoconfiguration, and experimental provisioning disabled. Post-deploy health
+  and map requests returned 200, the live SVG carried both size and ripple
+  channels, the resource inventory remained one matching D1 database, and the
+  temporary Wrangler OAuth session was logged out and deleted.
+
 Historical Git objects still contain values deleted from the current tree.
 Removing those objects would require rewriting public history and force-pushing,
 which this repository explicitly prohibits. Do not claim complete historical
