@@ -73,6 +73,10 @@ Decisions made on 2026-08-30:
   It sets no cookie, makes no network request, and is hidden when JavaScript is
   unavailable while CSS continues to follow the system theme. Its visible
   state words are `明` and `暗`, avoiding the time-of-day ambiguity of `日` and `夜`.
+- The header navigation intentionally exposes only `首页`; the complete archive
+  remains published at `/posts/` without a header link. Homepage post titles use
+  a quieter, homepage-only Newsreader scale, while archive and article-page
+  typography retain their established hierarchy.
 - The Chinese font is the unmodified LXGW WenKai GB 1.522 TTF under SIL OFL
   1.1. The user explicitly prioritizes its elegant contemporary-kai appearance
   over its roughly 25 MB mobile transfer cost.

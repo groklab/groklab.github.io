@@ -5,9 +5,6 @@
   </div>
   <nav class="site-nav" aria-label="主要导航">
     <a href="{{ .Site.Home.RelPermalink }}"{{ if .IsHome }} aria-current="page"{{ end }}>首页</a>
-    {{- with .Site.GetPage "/posts" }}
-      <a href="{{ .RelPermalink }}"{{ if eq $.Section "posts" }} aria-current="page"{{ end }}>文章</a>
-    {{- end }}
   </nav>
   <button class="theme-toggle" type="button" data-theme-toggle hidden>
     <span class="theme-toggle__state theme-toggle__state--light" aria-hidden="true">明</span>
